@@ -490,23 +490,37 @@
     } else if (o.start || o.end) {
       parts.push(str(o.start || o.end));
     }
+    // 统计口径决定日报里出不出现某一列：只用预计的团队，日报里摆一列全 0 的实际工时纯属噪音
+    const basis = o.basis === 'actual' || o.basis === 'both' ? o.basis : 'estimated';
+    const showEst = basis === 'estimated' || basis === 'both';
+    const showAct = basis === 'actual' || basis === 'both';
+    const estName = str(o.estLabel) || '预计';
+    const actName = str(o.actLabel) || '实际';
+
     parts.push(sum.count + ' 个任务');
-    parts.push('预计 ' + fmtHours(sum.est) + 'h');
-    parts.push('实际 ' + fmtHours(sum.act) + 'h');
+    if (showEst) parts.push(estName + ' ' + fmtHours(sum.est) + 'h');
+    if (showAct) parts.push(actName + ' ' + fmtHours(sum.act) + 'h');
+
+    const cols = [];
+    if (showEst) cols.push({ name: estName + '(h)', pick: function (x) { return x.est; } });
+    if (showAct) cols.push({ name: actName + '(h)', pick: function (x) { return x.act; } });
 
     const lines = [];
     if (o.title) lines.push('### ' + mdCell(o.title));
     lines.push('> ' + parts.join(' · '));
     lines.push('');
-    lines.push('| ' + GROUP_LABELS[gk] + ' | 任务数 | 预计(h) | 实际(h) |');
-    lines.push('| --- | ---: | ---: | ---: |');
+    lines.push('| ' + GROUP_LABELS[gk] + ' | 任务数 | ' +
+      cols.map(function (c) { return c.name; }).join(' | ') + ' |');
+    lines.push('| --- | ---: |' + cols.map(function () { return ' ---: |'; }).join(''));
 
-    const groups = groupBy(list, gk);
+    const groups = groupBy(list, gk, basis === 'actual' ? 'act' : 'est');
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
-      lines.push('| ' + mdCell(g.label) + ' | ' + g.count + ' | ' + fmtHours(g.est) + ' | ' + fmtHours(g.act) + ' |');
+      lines.push('| ' + mdCell(g.label) + ' | ' + g.count + ' | ' +
+        cols.map(function (c) { return fmtHours(c.pick(g)); }).join(' | ') + ' |');
     }
-    lines.push('| **合计** | **' + sum.count + '** | **' + fmtHours(sum.est) + '** | **' + fmtHours(sum.act) + '** |');
+    lines.push('| **合计** | **' + sum.count + '** | ' +
+      cols.map(function (c) { return '**' + fmtHours(c.pick(sum)) + '**'; }).join(' | ') + ' |');
 
     // 汇总表只回答「花在哪个项目」，日报周报和绩效自评要回答「具体做了什么」，
     // 所以默认再带一份按同一维度分组的任务清单。detail:false 可关掉。
@@ -527,14 +541,15 @@
         const g = groups[i];
         const bucket = byKey[g.key] || [];
         lines.push('');
-        lines.push('**' + mdCell(g.label) + '**（' + g.count + ' 个 · 预计 ' + fmtHours(g.est) + 'h）');
+        lines.push('**' + mdCell(g.label) + '**（' + g.count + ' 个 · ' +
+          (basis === 'actual' ? actName + ' ' + fmtHours(g.act) : estName + ' ' + fmtHours(g.est)) + 'h）');
         for (let j = 0; j < bucket.length; j++) {
           if (printed >= cap) { omitted += 1; continue; }
           const r = bucket[j];
           const bits = [];
           if (r.status) bits.push(str(r.status));
-          bits.push('预计 ' + fmtHours(r.est) + 'h');
-          if (r.act) bits.push('实际 ' + fmtHours(r.act) + 'h');
+          if (showEst) bits.push(estName + ' ' + fmtHours(r.est) + 'h');
+          if (showAct && (r.act || !showEst)) bits.push(actName + ' ' + fmtHours(r.act) + 'h');
           const sn = r.sn ? mdCell(r.sn) + ' ' : '';
           lines.push('- ' + sn + mdCell(r.subject) + ' — ' + bits.join(' · '));
           printed += 1;

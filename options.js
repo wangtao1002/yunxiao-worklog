@@ -29,10 +29,11 @@
     ['last7', '近 7 天'],
     ['last30', '近 30 天']
   ];
+  // 注意：fillSelect 吃的是 [value, label] 数组对，不是对象 —— 写成对象会渲染出一排空白选项
   const HOURS_BASIS_OPTIONS = [
-    { value: 'estimated', label: '预计工时（默认）' },
-    { value: 'actual', label: '实际工时' },
-    { value: 'both', label: '两者都看' }
+    ['estimated', '预计工时（默认）'],
+    ['actual', '实际工时'],
+    ['both', '两者都看']
   ];
 
   // 「实际工时」在云效里是工时登记的累加值，团队不用工时登记的话这一列全是 0，
@@ -255,11 +256,11 @@
     if (!box || !summaryItems) return;
     box.textContent = '';
 
-    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange);
+    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange, p.hoursBasis);
     const chosen = Object.create(null);
     selected.forEach(function (key) { chosen[key] = true; });
 
-    summaryItems.available(p.defaultRange).forEach(function (item) {
+    summaryItems.available(p.defaultRange, p.hoursBasis).forEach(function (item) {
       const input = el('input', { type: 'checkbox', value: item.key });
       input.checked = !!chosen[item.key];
       const fixed = item.key === 'range' && selected.length > 0;
@@ -347,7 +348,14 @@
     });
     $('hoursBasis').addEventListener('change', function () {
       $('hoursBasisHint').textContent = BASIS_HINTS[this.value] || '';
-      savePrefs({ hoursBasis: this.value });
+      const next = this.value;
+      savePrefs({ hoursBasis: next });
+      // 口径变了，浮标可选的显示项也变了（比如只用预计时「实际」「偏差」就不该还列在这），
+      // 不重画会让人勾上一个永远不显示的项
+      if (state.cfg && state.cfg.prefs) {
+        state.cfg.prefs.hoursBasis = next;
+        renderSummaryBarItems(state.cfg.prefs);
+      }
     });
     $('warnMissingEst').addEventListener('change', function () {
       savePrefs({ warnMissingEst: this.checked });

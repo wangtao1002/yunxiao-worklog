@@ -903,9 +903,9 @@
     }
 
     const config = NS.summaryItems;
-    const selected = config.normalize(prefs.summaryBarItems, range.key);
+    const selected = config.normalize(prefs.summaryBarItems, range.key, prefs.hoursBasis);
     const byKey = Object.create(null);
-    config.available(range.key).forEach(function (item) { byKey[item.key] = item; });
+    config.available(range.key, prefs.hoursBasis).forEach(function (item) { byKey[item.key] = item; });
     return selected.map(function (key) {
       const def = byKey[key];
       const value = values[key];
@@ -915,7 +915,7 @@
 
   function renderResult(sum, hasFieldMap, truncated, range, savedAt, missing, memberErrors, rows, memberCount) {
     const prefs = state.prefs || FALLBACK_PREFS;
-    const selected = NS.summaryItems.normalize(prefs.summaryBarItems, range.key);
+    const selected = NS.summaryItems.normalize(prefs.summaryBarItems, range.key, prefs.hoursBasis);
     let items = null;
     if (selected.length) {
       items = customMetrics(sum, truncated, range, missing, rows, memberCount);
@@ -926,14 +926,20 @@
         v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条'
       }];
       if (hasFieldMap) {
+        // 只用预计的团队不该在浮标上看到实际和偏差；偏差是两者相减，只有都用时才有意义
+        const hb = (state.prefs && state.prefs.hoursBasis) || 'estimated';
+        const showEst = hb === 'estimated' || hb === 'both';
+        const showAct = hb === 'actual' || hb === 'both';
         const diff = Number(sum.diff) || 0;
-        items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
-        items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
-        items.push({
-          k: '偏差',
-          v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
-          tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
-        });
+        if (showEst) items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
+        if (showAct) items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
+        if (hb === 'both') {
+          items.push({
+            k: '偏差',
+            v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
+            tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
+          });
+        }
         // 漏填的工时会把上面的合计压低，不点出来根本发现不了
         if (missing > 0) {
           const mk = state.prefs && state.prefs.hoursBasis === 'actual' ? '未填实际'
