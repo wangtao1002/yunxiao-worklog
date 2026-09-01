@@ -749,7 +749,7 @@
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load({ cacheOnly: true });
+        load();
       }),
       btn('yxp-btn ghost', '不含我', function () {
         if (!state.memberIds.length) {
@@ -760,7 +760,7 @@
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load({ cacheOnly: true });
+        load();
       })
     );
     add(box, foot);
@@ -807,7 +807,7 @@
     if (!on && i >= 0) state.memberIds.splice(i, 1);
     saveMembers();
     refreshMemberSummary();
-    load({ cacheOnly: true });
+    load();
   }
 
   function onToggleSelf(on, cb) {
@@ -819,7 +819,9 @@
     state.includeSelf = !!on;
     saveMembers();
     refreshMemberSummary();
-    load({ cacheOnly: true });
+    // 成员变了就得重新拉：缓存是按「成员组合」存的，这里走 cacheOnly 会停在
+    // 「加载此区间」等用户再点一次，对用户来说就是「取消了自己却没反应」。
+    load();
   }
 
   function onRemoveContact(id) {
@@ -956,7 +958,12 @@
 
     try {
       await ensureConfig();
-      const scope = await NS.rangeData.resolve(state.prefs);
+      // 把界面上的实时选择带进去，别让 resolve 回读存储把它覆盖掉（详见 rangeData.resolve 注释）。
+      // state.booted 之前 state 里还是默认值，那时才该以存储为准。
+      const scope = await NS.rangeData.resolve(state.prefs, state.booted ? {
+        includeSelf: state.includeSelf,
+        memberIds: state.memberIds
+      } : null);
       if (seq !== state.reqSeq) return;
       state.ctx = scope.ctx;
       state.includeSelf = scope.includeSelf !== false;

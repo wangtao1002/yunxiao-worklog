@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云效工时统计
 // @namespace    https://devops.aliyun.com/
-// @version      0.2.0
+// @version      0.2.1
 // @description  在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。
 // @author       abner
 // @license      MIT
@@ -21,7 +21,7 @@
   'use strict';
 
   window.YXWT = window.YXWT || {};
-  window.YXWT.__version = "0.2.0";
+  window.YXWT.__version = "0.2.1";
   window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填预计工时提醒<small>统计范围里没填「预计工时」的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填预计工时的任务<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
 
   // ---- options.js（原文照搬，只把 window / document 从全局改成形参）----
@@ -4386,10 +4386,22 @@
     return !!ak && ak === localDayKey(b);
   }
 
-  async function resolve(prefs) {
+  /**
+   * @param prefs 当前偏好
+   * @param override 调用方手上的实时选择 {includeSelf, memberIds}。
+   *
+   * 为什么要有 override：面板里改成员是「先改 state -> 异步落盘 -> 立刻 load」，
+   * 这里若一律回读存储，就会读到还没写完的旧值，再把用户刚点的选择覆盖回去
+   * （表现为：取消自己之后界面纹丝不动，非得手点一次「加载此区间」）。
+   * 用户在界面上的选择才是权威，存储只是它的持久化副本。
+   */
+  async function resolve(prefs, override) {
+    const ov = override || {};
     const ctx = await NS.detect.context();
     const orgId = String((ctx && ctx.orgId) || '');
-    const memberIds = orgId ? await NS.store.getMembers(orgId) : [];
+    const memberIds = Array.isArray(ov.memberIds)
+      ? ov.memberIds.slice()
+      : (orgId ? await NS.store.getMembers(orgId) : []);
     const contacts = orgId ? await NS.store.getContacts(orgId) : {};
     const fieldMap = await NS.detect.fieldMap();
     if (!fieldMap) {
@@ -4405,7 +4417,9 @@
 
     const meId = String((ctx && ctx.userId) || '');
     if (!meId) throw new Error('未取到当前用户');
-    let includeSelf = !prefs || prefs.includeSelf !== false;
+    let includeSelf = ov.includeSelf === undefined
+      ? (!prefs || prefs.includeSelf !== false)
+      : !!ov.includeSelf;
     const members = [];
     if (includeSelf) members.push({ id: meId, name: (ctx && ctx.name) || '我', self: true });
     (memberIds || []).forEach(function (id) {
@@ -6307,7 +6321,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load({ cacheOnly: true });
+        load();
       }),
       btn('yxp-btn ghost', '不含我', function () {
         if (!state.memberIds.length) {
@@ -6318,7 +6332,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load({ cacheOnly: true });
+        load();
       })
     );
     add(box, foot);
@@ -6365,7 +6379,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (!on && i >= 0) state.memberIds.splice(i, 1);
     saveMembers();
     refreshMemberSummary();
-    load({ cacheOnly: true });
+    load();
   }
 
   function onToggleSelf(on, cb) {
@@ -6377,7 +6391,9 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.includeSelf = !!on;
     saveMembers();
     refreshMemberSummary();
-    load({ cacheOnly: true });
+    // 成员变了就得重新拉：缓存是按「成员组合」存的，这里走 cacheOnly 会停在
+    // 「加载此区间」等用户再点一次，对用户来说就是「取消了自己却没反应」。
+    load();
   }
 
   function onRemoveContact(id) {
@@ -6514,7 +6530,12 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
     try {
       await ensureConfig();
-      const scope = await NS.rangeData.resolve(state.prefs);
+      // 把界面上的实时选择带进去，别让 resolve 回读存储把它覆盖掉（详见 rangeData.resolve 注释）。
+      // state.booted 之前 state 里还是默认值，那时才该以存储为准。
+      const scope = await NS.rangeData.resolve(state.prefs, state.booted ? {
+        includeSelf: state.includeSelf,
+        memberIds: state.memberIds
+      } : null);
       if (seq !== state.reqSeq) return;
       state.ctx = scope.ctx;
       state.includeSelf = scope.includeSelf !== false;

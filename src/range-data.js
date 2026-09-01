@@ -47,10 +47,22 @@
     return !!ak && ak === localDayKey(b);
   }
 
-  async function resolve(prefs) {
+  /**
+   * @param prefs 当前偏好
+   * @param override 调用方手上的实时选择 {includeSelf, memberIds}。
+   *
+   * 为什么要有 override：面板里改成员是「先改 state -> 异步落盘 -> 立刻 load」，
+   * 这里若一律回读存储，就会读到还没写完的旧值，再把用户刚点的选择覆盖回去
+   * （表现为：取消自己之后界面纹丝不动，非得手点一次「加载此区间」）。
+   * 用户在界面上的选择才是权威，存储只是它的持久化副本。
+   */
+  async function resolve(prefs, override) {
+    const ov = override || {};
     const ctx = await NS.detect.context();
     const orgId = String((ctx && ctx.orgId) || '');
-    const memberIds = orgId ? await NS.store.getMembers(orgId) : [];
+    const memberIds = Array.isArray(ov.memberIds)
+      ? ov.memberIds.slice()
+      : (orgId ? await NS.store.getMembers(orgId) : []);
     const contacts = orgId ? await NS.store.getContacts(orgId) : {};
     const fieldMap = await NS.detect.fieldMap();
     if (!fieldMap) {
@@ -66,7 +78,9 @@
 
     const meId = String((ctx && ctx.userId) || '');
     if (!meId) throw new Error('未取到当前用户');
-    let includeSelf = !prefs || prefs.includeSelf !== false;
+    let includeSelf = ov.includeSelf === undefined
+      ? (!prefs || prefs.includeSelf !== false)
+      : !!ov.includeSelf;
     const members = [];
     if (includeSelf) members.push({ id: meId, name: (ctx && ctx.name) || '我', self: true });
     (memberIds || []).forEach(function (id) {
