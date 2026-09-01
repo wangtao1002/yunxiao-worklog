@@ -57,7 +57,9 @@
 
 **安装地址**（点开油猴会自动弹出安装页）：
 
-<https://raw.githubusercontent.com/wangtao1002/yunxiao-worklog/main/yunxiao-worklog.user.js>
+<https://update.greasyfork.org/scripts/593850/%E4%BA%91%E6%95%88%E5%B7%A5%E6%97%B6%E7%BB%9F%E8%AE%A1.user.js>
+
+脚本页面：<https://greasyfork.org/zh-CN/scripts/593850>
 
 使用者：
 
@@ -73,9 +75,25 @@
 #### 发版（维护者）
 
 ```bash
-python3 tools/build-userscript.py --host "https://raw.githubusercontent.com/wangtao1002/yunxiao-worklog/main"
+# 1. 改 manifest.json 的 version —— 油猴靠 @version 判断要不要更新
+python3 tools/build-userscript.py
 git commit -am "chore: 发布 vX.Y.Z" && git push
 ```
+
+然后去 <https://greasyfork.org/zh-CN/scripts/593850> 点「更新代码」，把 `yunxiao-worklog.user.js` 的内容贴进去发布新版本，
+装了的人几小时内自动更新到。（Greasy Fork 的脚本管理页还有「从 URL 同步」，
+配上 GitHub 的 raw 地址后连粘贴都省了。）
+
+改代码请改 `src/`，`.user.js` 是构建产物，别直接编辑。
+
+> **构建时不用再传 `--host`**：Greasy Fork 分发时会自己注入
+> `@updateURL` / `@downloadURL` 指向 `update.greasyfork.org`，
+> 脚本里自带一份反而会打架。
+>
+> **为什么走 Greasy Fork 而不是 GitHub raw / jsDelivr CDN**：裸连实测（这才是同事的网络，
+> 别挂着代理测——挂代理的结论正好相反），jsDelivr 四个节点全部不可达，
+> raw 虽然通但各地 DNS 污染情况不一；`update.greasyfork.org` 裸连 1.7 秒返回 200，
+> 而且自带安装页面和更新管理。
 
 改代码请改 `src/`，`.user.js` 是构建产物，别直接编辑。版本号从 `manifest.json` 读，
 油猴靠 `@version` 判断要不要更新——**发版前记得把 manifest 的版本号加上去**。
