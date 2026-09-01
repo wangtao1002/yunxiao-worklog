@@ -242,7 +242,30 @@ eq('workcalendar 未内置 2027 时按周一至周五并提示年份',
   workcalendar.summarize('2027-01-01', '2027-01-03', 8, 1).unsupportedYears, ['2027']);
 eq('summaryItems 空选择保持旧版默认模式', summaryItems.normalize([], 'thisMonth'), []);
 eq('summaryItems 自定义项自动补上必显范围',
-  summaryItems.normalize(['actual', 'workdayDiff'], 'thisMonth'), ['range', 'actual', 'workdayDiff']);
+  summaryItems.normalize(['actual', 'workdayDiff'], 'thisMonth', 'both'), ['range', 'actual', 'workdayDiff']);
+
+// 统计口径决定哪些指标能出现在浮标上：只用预计就不该还列着「实际」「偏差」
+eq('summaryItems 预计口径过滤掉实际与偏差',
+  summaryItems.normalize(['estimated', 'actual', 'diff'], 'thisMonth', 'estimated'),
+  ['range', 'estimated']);
+eq('summaryItems 实际口径过滤掉预计与偏差',
+  summaryItems.normalize(['estimated', 'actual', 'diff'], 'thisMonth', 'actual'),
+  ['range', 'actual']);
+eq('summaryItems both 口径三个都留',
+  summaryItems.normalize(['estimated', 'actual', 'diff'], 'thisMonth', 'both'),
+  ['range', 'estimated', 'actual', 'diff']);
+eq('summaryItems 不传口径时按默认的预计处理',
+  summaryItems.normalize(['estimated', 'actual'], 'thisMonth'), ['range', 'estimated']);
+eq('summaryItems 未填项的名字跟着口径变',
+  ['estimated', 'actual', 'both'].map(function (b) {
+    return summaryItems.available('lastMonth', b).filter(function (x) { return x.key === 'missingEst'; })[0].label;
+  }), ['未填预计', '未填实际', '未填工时']);
+ok('summaryItems 改名不污染模块级目录',
+  summaryItems.all.filter(function (x) { return x.key === 'missingEst'; })[0].label === '未填预计');
+
+eq('summaryItems available 按口径收窄可选项',
+  summaryItems.available('lastMonth', 'estimated').map((x) => x.key).filter((k) => k === 'actual' || k === 'diff'),
+  []);
 eq('summaryItems 本周提供截止今日两项',
   summaryItems.available('thisWeek').slice(-2).map((x) => x.key), ['throughToday', 'throughTodayDiff']);
 eq('summaryItems 切到上月会过滤截止今日项并保留其它选择',
@@ -250,10 +273,11 @@ eq('summaryItems 切到上月会过滤截止今日项并保留其它选择',
   ['range', 'workdayTotal']);
 const panelSource = readFileSync(path.join(ROOT, 'src/panel.js'), 'utf8');
 const overviewCardOrder = [
-  "card('实际工时',",
+  // 预计/实际两张卡改用探测到的真实字段名，且按统计口径决定显示与否
+  "card(fieldLabel('act'),",
   "card('偏差',",
   "card('工作日总工时',",
-  // 两张「跟工作日目标比」的偏差卡改由 addWorkDiffCard 统一渲染（要按统计口径切换预计/实际）
+  // 两张「跟工作日目标比」的偏差卡改由 addWorkDiffCard 统一渲染（使用独立达标工时口径）
   "addWorkDiffCard(workCards, '工时偏差'",
   "card('截止今日工时',",
   "addWorkDiffCard(workCards, '截止今日工时偏差'"
@@ -277,6 +301,16 @@ ok('panel 任务状态范围统一作用于概览、日历、分组和明细',
   panelSource.includes('return taskScopeRows().filter(function (r)'));
 ok('panel 任务状态范围不改变已编辑任务的待提交写回清单',
   /function changedList\(\) \{[\s\S]{0,160}state\.rows\.forEach/.test(panelSource));
+ok('panel 概览按统计口径裁剪：预计卡看 usesEst、实际卡看 usesAct、偏差卡只在 both 出现',
+  panelSource.includes("if (usesEst()) {") && panelSource.includes("if (usesAct()) {") &&
+  /if \(hoursBasis\(\) === 'both'\) \{\r?\n\s+const diff/.test(panelSource));
+ok('panel 明细表按口径过滤列',
+  panelSource.includes("if (c.key === 'est') return usesEst();") &&
+  panelSource.includes("if (usesEst()) add(tr, numCell(r, 'est', tr));"));
+ok('panel 排序列被藏掉时退回默认',
+  panelSource.includes("state.sortKey = 'planEnd';"));
+ok('panel 只用预计时不显示「按预计工时一键填充」（它写的是实际工时）',
+  panelSource.includes('if (canEditAct && usesAct()) {'));
 ok('panel 截止今日两卡只对本周、本月显示',
   panelSource.includes("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
 ok('panel 截止今日偏差与工时偏差走同一套渲染，颜色规则一致',
@@ -547,8 +581,10 @@ ok('toCsv 空数据也有表头', stats.toCsv([]).replace(/^﻿/, '').indexOf('�
  * 8. toMarkdown
  * ------------------------------------------------------------------ */
 
+// 这批断言测的是排版本身（标题/概要/表头/合计/明细），用 both 口径拿到完整两列；
+// 口径裁剪单独在下面测
 const md = stats.toMarkdown(rows, {
-  groupKey: 'project', start: '2026-08-17', end: '2026-08-23', title: '本周工时'
+  groupKey: 'project', start: '2026-08-17', end: '2026-08-23', title: '本周工时', basis: 'both'
 });
 const mdLines = md.split('\n');
 eq('toMarkdown 标题行', mdLines[0], '### 本周工时');
@@ -1392,8 +1428,13 @@ ok('summarybar 工作日目标人数使用实际选中成员，排除自己后�
 ok('panel 工作日目标人数跟随包含/排除自己状态',
   panelSource.includes('dailyTarget(), pickedCount()'));
 ok('options 改默认范围时同时过滤并保存悬浮条指标',
-  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, select.value)') &&
+  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, select.value, before.hoursBasis)') &&
   optionsSource.includes('defaultRange: select.value, summaryBarItems: nextItems'));
+ok('options 勾选悬浮条指标时使用当前统计展示口径',
+  optionsSource.includes('summaryItems.normalize(values, p.defaultRange, p.hoursBasis)'));
+ok('options 改统计展示口径时清除并保存不再可用的悬浮条指标',
+  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, before.defaultRange, next)') &&
+  optionsSource.includes('savePrefs({ hoursBasis: next, summaryBarItems: nextItems })'));
 ok('options 支持一键恢复悬浮条默认显示',
   optionsSource.includes("savePrefs({ summaryBarItems: [] })"));
 const generalSettingOrder = ['id="dateBasis"', 'id="taskScope"', 'id="workDiffBasis"', 'id="defaultRange"']
@@ -1406,6 +1447,9 @@ ok('options 保存任务状态范围和达标工时口径',
 ok('summarybar 对快照先按任务状态过滤，并用独立口径计算工作日偏差',
   summarybarSource.includes('NS.stats.filterByTaskScope(snapshot.rows || [], prefs.taskScope)') &&
   summarybarSource.includes('NS.stats.workHoursTotal(rows, prefs.workDiffBasis)'));
+ok('summarybar 自定义日均按统计展示口径选择预计、实际或两者',
+  summarybarSource.includes("prefs.hoursBasis === 'actual' ? sum.avgPerDayAct : sum.avgPerDay") &&
+  summarybarSource.includes("prefs.hoursBasis === 'both'"));
 
 const GROUPS = [
   { identifier: '29', name: '已完成', count: 2467 },
@@ -1573,6 +1617,33 @@ const GROUPS = [
   await new Promise((r) => setTimeout(r, 0));
   eq('gm-shim 跨标签页变更能传进来',
     seen.length > before && seen[seen.length - 1].version, { oldValue: 9, newValue: 10 });
+}
+
+// toMarkdown 的口径裁剪：日报里不该出现当前口径用不到的列
+{
+  const mdEst = stats.toMarkdown(rows, { start: '2026-08-17', end: '2026-08-23', basis: 'estimated' });
+  const mdAct = stats.toMarkdown(rows, { start: '2026-08-17', end: '2026-08-23', basis: 'actual' });
+  const mdBoth = stats.toMarkdown(rows, { start: '2026-08-17', end: '2026-08-23', basis: 'both' });
+  ok('toMarkdown 预计口径不出现实际列', mdEst.indexOf('实际') < 0 && mdEst.indexOf('预计(h)') > 0);
+  ok('toMarkdown 实际口径不出现预计列', mdAct.indexOf('预计') < 0 && mdAct.indexOf('实际(h)') > 0);
+  ok('toMarkdown both 两列都在', mdBoth.indexOf('预计(h)') > 0 && mdBoth.indexOf('实际(h)') > 0);
+  ok('toMarkdown 不传 basis 时按默认的预计',
+    stats.toMarkdown(rows, {}).indexOf('实际') < 0);
+  ok('toMarkdown 支持传入探测到的真实字段名',
+    stats.toMarkdown(rows, { basis: 'both', estLabel: '研发工时', actLabel: '投入工时' })
+      .indexOf('研发工时(h)') > 0);
+}
+
+// options.js 的 fillSelect 吃 [value, label] 数组对，写成对象会渲染出一排空白选项（踩过）
+{
+  const optionsSource = readFileSync(path.join(ROOT, 'options.js'), 'utf8');
+  const blocks = optionsSource.match(/const [A-Z_]*OPTIONS = \[[\s\S]*?\n  \];/g) || [];
+  ok('options.js 所有 *_OPTIONS 都是 [value, label] 数组对', blocks.length > 0 &&
+    blocks.every((b) => !/\{\s*value:/.test(b)), blocks.filter((b) => /\{\s*value:/.test(b)));
+  ok('统计口径三个选项齐全',
+    optionsSource.includes("['estimated', '预计工时（默认）']") &&
+    optionsSource.includes("['actual', '实际工时']") &&
+    optionsSource.includes("['both', '两者都看']"));
 }
 
 /* ------------------------------------------------------------------ *

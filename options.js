@@ -43,6 +43,7 @@
     ['last7', '近 7 天'],
     ['last30', '近 30 天']
   ];
+  // 注意：fillSelect 吃的是 [value, label] 数组对，不是对象 —— 写成对象会渲染出一排空白选项
   const HOURS_BASIS_OPTIONS = [
     ['estimated', '预计工时（默认）'],
     ['actual', '实际工时'],
@@ -269,11 +270,11 @@
     if (!box || !summaryItems) return;
     box.textContent = '';
 
-    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange);
+    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange, p.hoursBasis);
     const chosen = Object.create(null);
     selected.forEach(function (key) { chosen[key] = true; });
 
-    summaryItems.available(p.defaultRange).forEach(function (item) {
+    summaryItems.available(p.defaultRange, p.hoursBasis).forEach(function (item) {
       const input = el('input', { type: 'checkbox', value: item.key });
       input.checked = !!chosen[item.key];
       const fixed = item.key === 'range' && selected.length > 0;
@@ -289,7 +290,7 @@
         const values = [];
         const nodes = box.querySelectorAll('input[type="checkbox"]');
         for (let i = 0; i < nodes.length; i++) if (nodes[i].checked) values.push(nodes[i].value);
-        const next = summaryItems.normalize(values, p.defaultRange);
+        const next = summaryItems.normalize(values, p.defaultRange, p.hoursBasis);
         savePrefs({ summaryBarItems: next }).then(function (cfg) {
           renderSummaryBarItems((cfg || state.cfg).prefs);
         });
@@ -302,7 +303,7 @@
     if (note) {
       note.textContent = selected.length
         ? '已自定义显示 ' + selected.length + ' 项；范围为必显项。'
-        : '未选择：沿用范围、条数、预计、实际、偏差等当前样式。';
+        : '未选择：沿用当前统计展示口径对应的默认样式。';
     }
   }
 
@@ -352,7 +353,7 @@
     $('defaultRange').addEventListener('change', function () {
       const select = this;
       const before = state.cfg && state.cfg.prefs ? state.cfg.prefs : {};
-      const nextItems = summaryItems.normalize(before.summaryBarItems, select.value);
+      const nextItems = summaryItems.normalize(before.summaryBarItems, select.value, before.hoursBasis);
       savePrefs({ defaultRange: select.value, summaryBarItems: nextItems }).then(function (cfg) {
         if (!cfg) select.value = before.defaultRange || 'thisWeek';
         renderSummaryBarItems((cfg || state.cfg).prefs);
@@ -372,7 +373,12 @@
     });
     $('hoursBasis').addEventListener('change', function () {
       $('hoursBasisHint').textContent = BASIS_HINTS[this.value] || '';
-      savePrefs({ hoursBasis: this.value });
+      const next = this.value;
+      const before = state.cfg && state.cfg.prefs ? state.cfg.prefs : {};
+      const nextItems = summaryItems.normalize(before.summaryBarItems, before.defaultRange, next);
+      savePrefs({ hoursBasis: next, summaryBarItems: nextItems }).then(function (cfg) {
+        renderSummaryBarItems((cfg || state.cfg).prefs);
+      });
     });
     $('warnMissingEst').addEventListener('change', function () {
       savePrefs({ warnMissingEst: this.checked });

@@ -1337,21 +1337,30 @@
 
     const cards = el('div', 'yxp-cards');
     add(cards, card('任务数', String(s.count), '', ''));
-    add(cards, card('预计工时', hours(s.est), 'h', noEst ? '字段未识别，按 0 计算' : '', noEst ? 'yxp-warn' : ''));
-    add(cards, card('实际工时', hours(s.act), 'h', noAct ? '字段未识别，按 0 计算' : '', noAct ? 'yxp-warn' : ''));
+    // 只用预计的团队不该看到实际工时那一套，反之亦然；「偏差」是两者相减，只有都用时才有意义
+    if (usesEst()) {
+      add(cards, card(fieldLabel('est'), hours(s.est), 'h',
+        noEst ? '字段未识别，按 0 计算' : '', noEst ? 'yxp-warn' : ''));
+    }
+    if (usesAct()) {
+      add(cards, card(fieldLabel('act'), hours(s.act), 'h',
+        noAct ? '字段未识别，按 0 计算' : '', noAct ? 'yxp-warn' : ''));
+    }
 
-    const diff = Number(s.diff) || 0;
-    add(cards, card('偏差', (diff > 0 ? '+' : '') + hours(diff), 'h', '实际 − 预计',
-      diff < 0 ? 'yxp-good' : (diff > 0 ? 'yxp-warn' : '')));
+    if (hoursBasis() === 'both') {
+      const diff = Number(s.diff) || 0;
+      add(cards, card('偏差', (diff > 0 ? '+' : '') + hours(diff), 'h',
+        fieldLabel('act') + ' − ' + fieldLabel('est'),
+        diff < 0 ? 'yxp-good' : (diff > 0 ? 'yxp-warn' : '')));
+    }
 
     const daysSub = (Number(s.days) || 0) + ' 个有效日';
     if (hoursBasis() === 'both') {
       add(cards, card('日均工时', hours(s.avgPerDay) + ' / ' + hours(s.avgPerDayAct), 'h',
-        daysSub + ' · 预计 / 实际'));
-    } else if (hoursBasis() === 'actual') {
-      add(cards, card('日均工时', hours(s.avgPerDayAct), 'h', daysSub + ' · 按实际'));
+        daysSub + ' · ' + fieldLabel('est') + ' / ' + fieldLabel('act')));
     } else {
-      add(cards, card('日均工时', hours(s.avgPerDay), 'h', daysSub));
+      const v = hoursBasis() === 'actual' ? s.avgPerDayAct : s.avgPerDay;
+      add(cards, card('日均工时', hours(v), 'h', daysSub));
     }
 
     const rate = Number(od.rate) || 0;
@@ -1519,8 +1528,10 @@
       const hv = el('div', 'h', val ? hours(val) : '·');
       if (val) add(hv, el('small', 'yxp-unit', 'h'));
       add(cell, el('div', 'd', dayNum), hv);
-      cell.title = d.ymd + ' · ' + d.count + ' 个任务 · ' + fieldLabel('est') + ' ' + hours(d.est) +
-        'h / ' + fieldLabel('act') + ' ' + hours(d.act) + 'h' +
+      const tipParts = [];
+      if (usesEst()) tipParts.push(fieldLabel('est') + ' ' + hours(d.est) + 'h');
+      if (usesAct()) tipParts.push(fieldLabel('act') + ' ' + hours(d.act) + 'h');
+      cell.title = d.ymd + ' · ' + d.count + ' 个任务 · ' + tipParts.join(' / ') +
         (d.deficit > 0 ? ' · 缺 ' + hours(d.deficit) + 'h' : '');
       cell.dataset.ymd = d.ymd;
       add(grid, cell);
@@ -1637,7 +1648,10 @@
       fill.style.width = Math.max(2, Math.round((metric / (max || 1)) * 100)) + '%';
       add(track, fill);
       const val = el('div', 'yxp-barval',
-        g.count + ' 条 · 预计 ' + hours(g.est) + 'h · 实际 ' + hours(g.act) + 'h');
+        [g.count + ' 条'].concat(
+          usesEst() ? [fieldLabel('est') + ' ' + hours(g.est) + 'h'] : [],
+          usesAct() ? [fieldLabel('act') + ' ' + hours(g.act) + 'h'] : []
+        ).join(' · '));
       add(line, label, track, val);
       add(bars, line);
     });
@@ -1652,6 +1666,15 @@
   }
 
   /* ---------------------------------------------------------------- 明细表 */
+
+  /** 明细表当前该显示哪几列：只用预计就不摆实际那一列，反之亦然 */
+  function visibleColumns() {
+    return COLUMNS.filter(function (c) {
+      if (c.key === 'est') return usesEst();
+      if (c.key === 'act') return usesAct();
+      return true;
+    });
+  }
 
   function renderTable() {
     const sec = clear(refs.secTable);
@@ -1710,7 +1733,7 @@
       }
     }
 
-    if (canEditAct) {
+    if (canEditAct && usesAct()) {
       // 「按预计工时填充」写的是实际工时，所以只看实际字段识别没识别出来
       refs.fillBtn = btn('yxp-btn', '按预计工时一键填充', fillFromEstimated);
       syncFillBtn();
@@ -1723,10 +1746,10 @@
         '「预计工时」和「实际工时」指向了同一个字段，已禁用「预计」列编辑（同时写会互相覆盖）。请到设置页修正映射。'));
     } else if (!canEdit) {
       add(bar, el('span', 'yxp-note', '未识别到工时字段，明细只读。可到设置页手动指定。'));
-    } else if (!canEditAct) {
-      add(bar, el('span', 'yxp-note', '未识别到「实际工时」字段，只有「预计」列可改。'));
-    } else if (!canEditField('est')) {
-      add(bar, el('span', 'yxp-note', '未识别到「预计工时」字段，只有「实际」列可改。'));
+    } else if (!canEditAct && usesAct()) {
+      add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('act') + '」字段，这一列只读。'));
+    } else if (!canEditField('est') && usesEst()) {
+      add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('est') + '」字段，这一列只读。'));
     }
     add(sec, bar);
 
@@ -1738,10 +1761,17 @@
     const table = el('table', 'yxp-table');
     const thead = el('thead', '');
     const tr = el('tr', '');
-    COLUMNS.forEach(function (c) {
+    // 排序列被口径藏掉了就退回默认，否则表头没有它、点不着也改不回来
+    if (!visibleColumns().some(function (c) { return c.key === state.sortKey; })) {
+      state.sortKey = 'planEnd';
+      state.sortDir = 'desc';
+    }
+    visibleColumns().forEach(function (c) {
       const sortable = c.sortable !== false;
       const on = sortable && state.sortKey === c.key;
-      const th = el('th', c.cls + (sortable ? '' : ' nosort'), c.label);
+      const colLabel = c.key === 'est' ? fieldLabel('est')
+        : (c.key === 'act' ? fieldLabel('act') : c.label);
+      const th = el('th', c.cls + (sortable ? '' : ' nosort'), colLabel);
       // ✎ 只在这一列真的可编辑时才显示，字段没识别出来就不该给人错觉。
       // 它表达的是「这列能改」，不是列名的一部分：aria-hidden，也不进 th 的 title / 可访问名，
       // 否则排序按钮的可访问名会变成「实际 铅笔 降序」。
@@ -1779,7 +1809,7 @@
         th.dataset.sortkey = c.key;
         th.setAttribute('role', 'columnheader');
         th.setAttribute('aria-sort', on ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-        th.title = '点击或按回车按「' + c.label + '」排序';
+        th.title = '点击或按回车按「' + colLabel + '」排序';
       }
       add(tr, th);
     });
@@ -1855,8 +1885,8 @@
     add(tr, tdStatus);
 
     add(tr, el('td', 'yxp-c-assignee', r.assignee || '—'));
-    add(tr, numCell(r, 'est', tr));
-    add(tr, numCell(r, 'act', tr));
+    if (usesEst()) add(tr, numCell(r, 'est', tr));
+    if (usesAct()) add(tr, numCell(r, 'act', tr));
 
     add(tr, el('td', 'yxp-c-date', r.planEnd || '—'));
 
@@ -2413,6 +2443,10 @@
         groupKey: state.groupTab,
         start: state.start,
         end: state.end,
+        // 日报跟着统计口径走：只用预计的团队，日报里摆一列全 0 的实际工时纯属噪音
+        basis: hoursBasis(),
+        estLabel: fieldLabel('est'),
+        actLabel: fieldLabel('act'),
         title: '云效工时统计 ' + state.start + ' ~ ' + state.end
       });
     } catch (e) {
