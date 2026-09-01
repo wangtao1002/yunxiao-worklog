@@ -41,6 +41,8 @@ env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY git push            # 禁代理，
 env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY git push --tags
 
 # 5. 去脚本页点「更新代码」，把 yunxiao-worklog.user.js 的内容贴进去发布
+#    —— 会被「此代码已在 XX 发布」拦一道，勾「仍要保存」再提交，见「三、油猴的坑」第 6 条
+#    —— 发完回脚本页确认版本号真的变了
 ```
 
 **第 2 步和 tag 都别省。** 前六个版本就是一个 tag 没打、也没有 CHANGELOG，
@@ -82,6 +84,12 @@ python3 tools/pack.py      # 版本号自动从 manifest.json 读
    代码里的 `@author` 决定的是油猴客户端里显示的作者。
 
 5. **提交表单有 invisible reCAPTCHA**，正常点提交即可，不要去绕。
+
+6. **发新版本会被「此代码已在 XX 发布」拦一道**。Greasy Fork 的防抄袭检测发现新版本和已发布的
+   旧版本高度相似，就怀疑是重复投稿。**勾上表单里的「仍要保存」
+   （`#script_version_allow_code_previously_posted`）再提交**即可。
+   坑在于：这条提示不在 `.error` 里，只读错误块会以为提交成功了，其实版本列表里根本没多出来。
+   **发完一定要回脚本页确认版本号真的变了**，别只看提交后跳转到哪。
 
 ---
 
