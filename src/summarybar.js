@@ -33,6 +33,7 @@
     includeSelf: true,
     excludeCancelled: true,
     warnMissingEst: true,
+    hoursBasis: 'estimated',
     theme: 'auto'
   };
 
@@ -933,8 +934,12 @@
           v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
           tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
         });
-        // 漏填的预计工时会把上面的「预计」压低，不点出来根本发现不了
-        if (missing > 0) items.push({ k: '未填预计', v: String(missing) + ' 条', tone: 'bad' });
+        // 漏填的工时会把上面的合计压低，不点出来根本发现不了
+        if (missing > 0) {
+          const mk = state.prefs && state.prefs.hoursBasis === 'actual' ? '未填实际'
+            : (state.prefs && state.prefs.hoursBasis === 'both' ? '未填工时' : '未填预计');
+          items.push({ k: mk, v: String(missing) + ' 条', tone: 'bad' });
+        }
       } else {
         items.push({ k: '', v: '未识别到工时字段' });
       }
@@ -942,7 +947,9 @@
     let title = '统计范围：' + range.label + '（' + range.start + ' ~ ' + range.end + '）';
     if (savedAt) title += '\n本地快照：' + new Date(savedAt).toLocaleString();
     if (missing > 0) {
-      title += '\n⚠ ' + missing + ' 条没填「预计工时」，上面的预计合计是偏低的；点「详细统计」可以标红置顶看是哪些。';
+      const what = state.prefs && state.prefs.hoursBasis === 'actual' ? '「实际工时」'
+        : (state.prefs && state.prefs.hoursBasis === 'both' ? '工时（预计或实际缺一个就算）' : '「预计工时」');
+      title += '\n⚠ ' + missing + ' 条没填' + what + '，上面的合计是偏低的；点「详细统计」可以标红置顶看是哪些。';
     }
     if (memberErrors && memberErrors.length) title += '\n⚠ ' + memberErrors.length + ' 位成员加载失败，本次统计不含其数据。';
     if (truncated) title += '\n数据达到分页上限，统计可能不完整。';
@@ -1024,9 +1031,16 @@
       const fieldMap = scope.fieldMap;
       const hasFieldMap = !!(fieldMap && (fieldMap.estimated || fieldMap.actual));
       // 预计工时字段没识别出来时整表 est 都是 0，这时候提示「全都没填」是误报
-      const canWarnMissing = !!(fieldMap && fieldMap.estimated && fieldMap.estimated.id) &&
-        prefs.warnMissingEst !== false;
-      const missing = canWarnMissing ? NS.stats.missingEst(rows).count : 0;
+      // 未填提醒跟着「统计口径」走：用实际工时统计的团队，「未填预计」对他们是噪音
+      const basisPref = prefs.hoursBasis === 'actual' || prefs.hoursBasis === 'both'
+        ? prefs.hoursBasis : 'estimated';
+      const hasEstField = !!(fieldMap && fieldMap.estimated && fieldMap.estimated.id);
+      const hasActField = !!(fieldMap && fieldMap.actual && fieldMap.actual.id);
+      const fieldReady = basisPref === 'actual' ? hasActField
+        : (basisPref === 'both' ? (hasEstField && hasActField) : hasEstField);
+      const canWarnMissing = fieldReady && prefs.warnMissingEst !== false;
+      const missBasis = basisPref === 'actual' ? 'act' : (basisPref === 'both' ? 'both' : 'est');
+      const missing = canWarnMissing ? NS.stats.missingHours(rows, missBasis).count : 0;
       renderResult(sum, hasFieldMap, !!snapshot.truncated, range, snapshot.savedAt, missing,
         snapshot.memberErrors, rows, scope.members.length);
     } catch (e) {
@@ -1118,6 +1132,7 @@
       a.includeSelf === b.includeSelf &&
       a.excludeCancelled === b.excludeCancelled &&
       a.warnMissingEst === b.warnMissingEst &&
+      a.hoursBasis === b.hoursBasis &&
       a.theme === b.theme;
   }
 

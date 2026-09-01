@@ -70,7 +70,8 @@ const DEFAULTS = {
     includeSelf: true,         // 是否把自己计入团队统计
     showSummaryBar: true,
     excludeCancelled: true,    // 统计时是否排除"已取消"状态
-    warnMissingEst: true,      // 是否提醒"没填预计工时"的任务（标红 + 置顶 + 合计条角标）
+    warnMissingEst: true,      // 是否提醒"没填工时"的任务（标红 + 置顶 + 合计条角标）
+    hoursBasis: 'estimated',   // 单值指标的基准：'estimated' | 'actual' | 'both'
     theme: 'auto'              // 'auto' | 'light' | 'dark'
   }
 };

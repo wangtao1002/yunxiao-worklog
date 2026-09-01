@@ -27,6 +27,9 @@
       summaryBarItems: [],
       members: [],               // 【已废弃】旧的扁平成员数组，仅用于一次性迁移到 membersByOrg
       includeSelf: true,         // 统计里是否包含自己（想「只看某个同事」时可以关掉）
+      // 单值指标（热力图 / 日均 / 工作日偏差 / 未填告警 / 分组排序）拿哪个字段当基准。
+      // 'estimated' | 'actual' | 'both'。默认预计——0.2.x 之前的行为就是这个。
+      hoursBasis: 'estimated',
       showSummaryBar: true,
       excludeCancelled: true,    // 统计时是否排除「已取消」状态
       // 没填「预计工时」的任务是否标红置顶提醒（字段没识别出来时无论开关如何都不提醒）

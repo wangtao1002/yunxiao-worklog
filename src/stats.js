@@ -259,7 +259,10 @@
       act: act,
       diff: round2(act - est),
       days: days,
-      avgPerDay: days > 0 ? round2(est / days) : 0
+      // avgPerDay 历史上一直是「预计」口径，保持不变；实际口径另给一个，
+      // 免得调用方自己算一遍还算错除零
+      avgPerDay: days > 0 ? round2(est / days) : 0,
+      avgPerDayAct: days > 0 ? round2(act / days) : 0
     };
   }
 
@@ -276,7 +279,7 @@
     return { key: '(全部)', label: '(全部)' };
   }
 
-  function groupBy(rows, key) {
+  function groupBy(rows, key, basis) {
     const list = Array.isArray(rows) ? rows : [];
     const map = Object.create(null);
     const order = [];
@@ -299,9 +302,13 @@
       g.act = round2(g.act);
       return g;
     });
-    // est 降序 → count 降序 → label 升序（最后一档只为结果稳定，避免同分时顺序随机）
+    // 主工时降序 → count 降序 → label 升序（最后一档只为结果稳定，避免同分时顺序随机）。
+    // basis='act' 时按实际排，其余按预计排：用实际工时统计的团队，按预计排出来的顺序没意义。
+    const useAct = basis === 'act';
     out.sort(function (a, b) {
-      if (b.est !== a.est) return b.est - a.est;
+      const av = useAct ? a.act : a.est;
+      const bv = useAct ? b.act : b.est;
+      if (bv !== av) return bv - av;
       if (b.count !== a.count) return b.count - a.count;
       return String(a.label).localeCompare(String(b.label), 'zh-Hans-CN');
     });
@@ -427,24 +434,33 @@
     return result;
   }
 
-  // 「没标记预计工时」= 预计工时 <= 0：字段整条没值（estMissing）和明确填了 0 都算，
+  // 「没标记工时」= 该口径下的工时 <= 0：字段整条没值和明确填了 0 都算，
   // 两者都得补一个真实数字，统计上没有区别。已取消的任务不提示——跟逾期口径一致，
   // 取消掉的任务再去补工时没有意义。
-  function isMissingEst(row) {
+  //
+  // basis: 'est'（默认）/ 'act' / 'both'。'both' 表示两个字段都要用，
+  // 所以任一为空就算没填全 —— 缺哪个都会让那一套统计失真。
+  function isMissingHours(row, basis) {
     if (!row || row.isCancelled) return false;
-    return toNum(row.est) <= 0;
+    const b = basis === 'act' || basis === 'both' ? basis : 'est';
+    if (b === 'est') return toNum(row.est) <= 0;
+    if (b === 'act') return toNum(row.act) <= 0;
+    return toNum(row.est) <= 0 || toNum(row.act) <= 0;
   }
 
-  // 调用方必须先确认「预计工时」字段已识别：字段没识别出来时所有行的 est 都是 0，
+  // 调用方必须先确认对应字段已识别：字段没识别出来时那一列全是 0，
   // 这里会把整张表判成未填，那是字段映射问题，不是漏填。
-  function missingEst(rows) {
+  function missingHours(rows, basis) {
     const list = Array.isArray(rows) ? rows : [];
-    const out = { count: 0, total: 0, rate: 0, list: [] };
+    const out = { count: 0, total: 0, rate: 0, list: [], est: 0, act: 0 };
     for (let i = 0; i < list.length; i++) {
       const r = list[i] || {};
       if (r.isCancelled) continue;
       out.total += 1;
-      if (isMissingEst(r)) {
+      // 分别记一份，供 'both' 模式在提示里说清「预计缺几条、实际缺几条」
+      if (toNum(r.est) <= 0) out.est += 1;
+      if (toNum(r.act) <= 0) out.act += 1;
+      if (isMissingHours(r, basis)) {
         out.count += 1;
         out.list.push(r);
       }
@@ -452,6 +468,10 @@
     out.rate = out.total > 0 ? round1((out.count / out.total) * 100) : 0;
     return out;
   }
+
+  // 旧名保留：0.1.x 起就在用，改名会把已有调用和断言全打断
+  function isMissingEst(row) { return isMissingHours(row, 'est'); }
+  function missingEst(rows) { return missingHours(rows, 'est'); }
 
   function mdCell(s) {
     // 表格单元格里的竖线和换行会撑破 markdown 表格
@@ -581,6 +601,8 @@
     overdue: overdue,
     isMissingEst: isMissingEst,
     missingEst: missingEst,
+    isMissingHours: isMissingHours,
+    missingHours: missingHours,
     toMarkdown: toMarkdown,
     toCsv: toCsv
   };

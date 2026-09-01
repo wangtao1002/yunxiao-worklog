@@ -253,9 +253,10 @@ const overviewCardOrder = [
   "card('实际工时',",
   "card('偏差',",
   "card('工作日总工时',",
-  "card('工时偏差',",
+  // 两张「跟工作日目标比」的偏差卡改由 addWorkDiffCard 统一渲染（要按统计口径切换预计/实际）
+  "addWorkDiffCard(workCards, '工时偏差'",
   "card('截止今日工时',",
-  "card('截止今日工时偏差',"
+  "addWorkDiffCard(workCards, '截止今日工时偏差'"
 ].map((needle) => panelSource.indexOf(needle));
 ok('panel 概览卡顺序：实际 → 偏差 → 工作日总工时 → 工时偏差 → 截止今日 → 截止今日偏差',
   overviewCardOrder.every((pos, i) => pos >= 0 && (i === 0 || pos > overviewCardOrder[i - 1])), overviewCardOrder);
@@ -265,12 +266,12 @@ ok('panel 工时目标卡使用独立第二行网格',
 ok('panel 工时偏差在本周本月条件之外，所有时间范围都有',
   panelSource.indexOf("card('工时偏差',") <
   panelSource.indexOf("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
-ok('panel 工时偏差正数红色、负数绿色',
-  panelSource.includes("workDiff > 0 ? 'yxp-bad' : (workDiff < 0 ? 'yxp-good' : '')"));
+ok('panel 工时偏差正数红色、负数绿色（两张卡共用 addWorkDiffCard 的 tone）',
+  panelSource.includes("return v > 0 ? 'yxp-bad' : (v < 0 ? 'yxp-good' : '');"));
 ok('panel 截止今日两卡只对本周、本月显示',
   panelSource.includes("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
-ok('panel 截止今日偏差正数红色、负数绿色',
-  panelSource.includes("throughDiff > 0 ? 'yxp-bad' : (throughDiff < 0 ? 'yxp-good' : '')"));
+ok('panel 截止今日偏差与工时偏差走同一套渲染，颜色规则一致',
+  (panelSource.match(/addWorkDiffCard\(workCards, /g) || []).length === 2);
 eq('rangeData 默认区间跟随 prefs', rangeData.rangeFromPrefs({ defaultRange: 'thisMonth' }).key, 'thisMonth');
 eq('rangeData 本月固定取 thisMonth 预设', rangeData.currentMonthRange().key, 'thisMonth');
 eq('rangeData 同一自然日不刷新', rangeData.isSameLocalDay(new Date(2026, 8, 1, 1), new Date(2026, 8, 1, 23)), true);
@@ -362,7 +363,7 @@ eq('summarize 3 条：act 合计 = 1.5', sum3.act, 1.5);
 eq('summarize 3 条：diff = act - est', sum3.diff, -4);
 eq('summarize 3 条：days（有 date 的不同日期数）', sum3.days, 2);
 eq('summarize 3 条：avgPerDay = est/days', sum3.avgPerDay, 2.75);
-eq('summarize 空数组', stats.summarize([]), { count: 0, est: 0, act: 0, diff: 0, days: 0, avgPerDay: 0 });
+eq('summarize 空数组', stats.summarize([]), { count: 0, est: 0, act: 0, diff: 0, days: 0, avgPerDay: 0, avgPerDayAct: 0 });
 
 // 浮点噪声：0.1 + 0.2 不能变成 0.30000000000000004
 const fl = stats.summarize([{ est: 0.1, act: 0 }, { est: 0.2, act: 0 }]);
@@ -482,8 +483,28 @@ eq('missingEst count/total/rate', [miss.count, miss.total, miss.rate], [2, 4, 50
 // 已取消的（D，预计 99h）既不进分子也不进分母，否则关掉「排除已取消」后分母会跳
 const missAll = stats.missingEst(rowsAll);
 eq('missingEst 分母不含已取消', [missAll.count, missAll.total], [2, 4]);
-eq('missingEst 空数组不炸', stats.missingEst([]), { count: 0, total: 0, rate: 0, list: [] });
+eq('missingEst 空数组不炸', stats.missingEst([]),
+  { count: 0, total: 0, rate: 0, list: [], est: 0, act: 0 });
 eq('missingEst 脏输入不炸', stats.missingEst(null).count, 0);
+
+// 口径参数：预计 / 实际 / 两者都要
+// rows 里 A(2/1.5) B(3.5/0) C(0/0) E(0/0)
+eq('missingHours(est) 只看预计', stats.missingHours(rows, 'est').list.map((r) => r.id).sort(), ['idc', 'ide']);
+eq('missingHours(act) 只看实际', stats.missingHours(rows, 'act').list.map((r) => r.id).sort(), ['idb', 'idc', 'ide']);
+eq('missingHours(both) 任一为空就算没填全',
+  stats.missingHours(rows, 'both').list.map((r) => r.id).sort(), ['idb', 'idc', 'ide']);
+eq('missingHours 分别记两个口径的条数',
+  [stats.missingHours(rows, 'est').est, stats.missingHours(rows, 'est').act], [2, 3]);
+eq('missingHours 非法 basis 退回预计', stats.missingHours(rows, '瞎写的').count, 2);
+eq('isMissingHours(act)：预计有值但实际为 0 也算', stats.isMissingHours({ est: 8, act: 0 }, 'act'), true);
+eq('isMissingHours(both)：两个都有值才算填全', stats.isMissingHours({ est: 8, act: 8 }, 'both'), false);
+eq('isMissingHours：已取消的任何口径都不提示', stats.isMissingHours({ est: 0, act: 0, isCancelled: true }, 'both'), false);
+
+eq('summarize 同时给出实际口径的日均', stats.summarize(three).avgPerDayAct,
+  Math.round((1.5 / 2) * 100) / 100);
+
+const gpAct = stats.groupBy(rows, 'project', 'act');
+eq('groupBy(basis=act) 按实际工时排序', gpAct.map((g) => g.act), [1.5, 0]);
 
 /* ------------------------------------------------------------------ *
  * 7. toCsv

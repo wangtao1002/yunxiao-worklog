@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "云效工时统计",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。",
   "minimum_chrome_version": "114",
   "permissions": [

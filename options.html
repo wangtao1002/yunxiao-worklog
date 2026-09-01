@@ -305,8 +305,16 @@
     </div>
 
     <div class="row">
-      <div class="lb">未填预计工时提醒<small>统计范围里没填「预计工时」的任务标红、置顶，合计条上也会显示条数</small></div>
-      <div><label class="check"><input type="checkbox" id="warnMissingEst"><span>提醒没填预计工时的任务</span></label></div>
+      <div class="lb">统计口径<small>热力图、日均工时、工作日偏差、未填提醒、分组排序拿哪个字段当基准</small></div>
+      <div>
+        <select id="hoursBasis"></select>
+        <div class="hint" id="hoursBasisHint"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lb">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数</small></div>
+      <div><label class="check"><input type="checkbox" id="warnMissingEst"><span>提醒没填工时的任务（按上面的统计口径）</span></label></div>
     </div>
 
     <div class="row">

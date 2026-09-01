@@ -308,7 +308,8 @@
     sortDir: 'desc',
     search: '',
     dayFilter: null,
-    missingOnly: false,     // 明细只看「没填预计工时」的行
+    heatField: null,        // both 口径下热力图当前看哪个字段（null=跟随设置）
+    missingOnly: false,     // 明细只看「没填工时」的行
     missingTop: true,       // 把这些行置顶（跟着提醒开关走，可在明细工具条临时关掉）
     groupTab: 'project',
     groupExpanded: {},
@@ -1170,7 +1171,37 @@
     renderStatus();
   }
 
-  /* -------------------------------------------------- 未填预计工时的警示 */
+  /* -------------------------------------------------- 统计口径（预计 / 实际 / 两者） */
+
+  /**
+   * 单值指标（热力图着色、日均、工作日偏差、未填告警、分组排序）拿哪个字段当基准。
+   * 天然双值的地方（预计/实际/偏差三张卡、明细两列、CSV）不受这里影响，它们本来就并排给。
+   */
+  function hoursBasis() {
+    const b = state.prefs && state.prefs.hoursBasis;
+    return b === 'actual' || b === 'both' ? b : 'estimated';
+  }
+
+  function usesEst() { const b = hoursBasis(); return b === 'estimated' || b === 'both'; }
+  function usesAct() { const b = hoursBasis(); return b === 'actual' || b === 'both'; }
+
+  /** 只能选一个字段的场景（热力图着色、分组排序）用它 —— both 时默认落在预计上 */
+  function primaryField() { return hoursBasis() === 'actual' ? 'act' : 'est'; }
+
+  /** stats.missingHours / isMissingHours 用的口径码 */
+  function missingBasis() {
+    const b = hoursBasis();
+    return b === 'actual' ? 'act' : (b === 'both' ? 'both' : 'est');
+  }
+
+  /** 界面上叫什么：字段名是运行时探测的，能拿到真名就用真名 */
+  function fieldLabel(which) {
+    const fm = state.fieldMap || {};
+    const f = which === 'act' ? fm.actual : fm.estimated;
+    return (f && f.name) || (which === 'act' ? '实际工时' : '预计工时');
+  }
+
+  /* -------------------------------------------------- 未填工时的警示 */
 
   /**
    * 能不能提醒「没填预计工时」：
@@ -1180,13 +1211,29 @@
   function canWarnMissing() {
     if (state.prefs && state.prefs.warnMissingEst === false) return false;
     const fm = state.fieldMap || {};
-    return !!(fm.estimated && fm.estimated.id);
+    const hasEst = !!(fm.estimated && fm.estimated.id);
+    const hasAct = !!(fm.actual && fm.actual.id);
+    // 字段没识别出来时那一列全是 0，一提醒就是整表标红 —— 那是字段映射问题不是漏填
+    if (hoursBasis() === 'actual') return hasAct;
+    if (hoursBasis() === 'both') return hasEst || hasAct;
+    return hasEst;
   }
 
-  /** 单行是否「没填预计工时」。用 effective 取值，用户在表里补完数字红色立刻消失 */
+  /**
+   * 单行是否「没填工时」。用 effective 取值，用户在表里补完数字红色立刻消失。
+   * both 口径下缺任一个都算 —— 两个字段都要用，缺哪个那套统计都会失真。
+   * 但只对**识别出来的**字段做判定，免得把没映射的字段算成漏填。
+   */
   function isMissing(r) {
     if (!r || r.isCancelled || !canWarnMissing()) return false;
-    return (Number(effective(r, 'est')) || 0) <= 0;
+    const fm = state.fieldMap || {};
+    const hasEst = !!(fm.estimated && fm.estimated.id);
+    const hasAct = !!(fm.actual && fm.actual.id);
+    const estBad = hasEst && (Number(effective(r, 'est')) || 0) <= 0;
+    const actBad = hasAct && (Number(effective(r, 'act')) || 0) <= 0;
+    if (hoursBasis() === 'actual') return actBad;
+    if (hoursBasis() === 'both') return estBad || actBad;
+    return estBad;
   }
 
   function countMissing(rows) {
@@ -1196,9 +1243,15 @@
   }
 
   function missTitle(r) {
-    return r && r.estMissing
-      ? '这个工作项上没有「预计工时」字段的值，去云效里补一个'
-      : '预计工时填的是 0，等于没填';
+    const bits = [];
+    const fm = state.fieldMap || {};
+    if (fm.estimated && fm.estimated.id && usesEst() && (Number(effective(r, 'est')) || 0) <= 0) {
+      bits.push(r && r.estMissing ? fieldLabel('est') + '没有值' : fieldLabel('est') + '填的是 0');
+    }
+    if (fm.actual && fm.actual.id && usesAct() && (Number(effective(r, 'act')) || 0) <= 0) {
+      bits.push(fieldLabel('act') + '为 0');
+    }
+    return bits.length ? bits.join('、') + '，去云效里补一个' : '';
   }
 
   function toggleMissingOnly() {
@@ -1261,7 +1314,15 @@
     add(cards, card('偏差', (diff > 0 ? '+' : '') + hours(diff), 'h', '实际 − 预计',
       diff < 0 ? 'yxp-good' : (diff > 0 ? 'yxp-warn' : '')));
 
-    add(cards, card('日均工时', hours(s.avgPerDay), 'h', (Number(s.days) || 0) + ' 个有效日'));
+    const daysSub = (Number(s.days) || 0) + ' 个有效日';
+    if (hoursBasis() === 'both') {
+      add(cards, card('日均工时', hours(s.avgPerDay) + ' / ' + hours(s.avgPerDayAct), 'h',
+        daysSub + ' · 预计 / 实际'));
+    } else if (hoursBasis() === 'actual') {
+      add(cards, card('日均工时', hours(s.avgPerDayAct), 'h', daysSub + ' · 按实际'));
+    } else {
+      add(cards, card('日均工时', hours(s.avgPerDay), 'h', daysSub));
+    }
 
     const rate = Number(od.rate) || 0;
     add(cards, card('逾期率', hours(rate), '%', (od.overdue || 0) + '/' + (od.total || 0) + ' 逾期',
@@ -1269,7 +1330,9 @@
 
     if (canWarnMissing()) {
       const miss = countMissing(rows);
-      add(cards, card('未填预计', String(miss), '条',
+      const label = hoursBasis() === 'actual' ? '未填实际'
+        : (hoursBasis() === 'both' ? '未填工时' : '未填预计');
+      add(cards, card(label, String(miss), '条',
         miss ? (state.missingOnly ? '点一下看全部' : '点一下只看这些') : '都填了',
         miss ? 'yxp-bad' : 'yxp-good',
         { onClick: (miss || state.missingOnly) ? toggleMissingOnly : null, active: state.missingOnly }));
@@ -1291,9 +1354,7 @@
     add(workCards, card('工作日总工时', hours(work.hours), 'h', workSub,
       work.unsupportedYears.length ? 'yxp-warn' : ''));
 
-    const workDiff = (Number(s.act) || 0) - work.hours;
-    add(workCards, card('工时偏差', (workDiff > 0 ? '+' : '') + hours(workDiff), 'h',
-      '实际 − 工作日总工时', workDiff > 0 ? 'yxp-bad' : (workDiff < 0 ? 'yxp-good' : '')));
+    addWorkDiffCard(workCards, '工时偏差', s, work.hours, '工作日总工时');
 
     if (state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek') {
       const today = U.toYMD(new Date());
@@ -1307,16 +1368,33 @@
       add(workCards, card('截止今日工时', hours(through.hours), 'h', throughSub,
         through.unsupportedYears.length ? 'yxp-warn' : ''));
 
-      const throughDiff = (Number(s.act) || 0) - through.hours;
-      add(workCards, card('截止今日工时偏差', (throughDiff > 0 ? '+' : '') + hours(throughDiff), 'h',
-        '实际 − 截止今日工时', throughDiff > 0 ? 'yxp-bad' : (throughDiff < 0 ? 'yxp-good' : '')));
+      addWorkDiffCard(workCards, '截止今日工时偏差', s, through.hours, '截止今日工时');
     }
 
     add(sec, workCards);
   }
 
   /**
-   * 漏填预计工时的警示条。数字用的是**整个时间区间**（state.rows），不随下面的搜索 /
+   * 「跟工作日目标比」的偏差卡。原来写死用实际工时，跟日均（用预计）不是一套口径，
+   * 现在统一跟随设置：both 时一张卡里给两个数，不再额外加卡把概览撑爆。
+   */
+  function addWorkDiffCard(box, label, s, targetHours, targetName) {
+    const est = (Number(s.est) || 0) - targetHours;
+    const act = (Number(s.act) || 0) - targetHours;
+    const sign = function (v) { return (v > 0 ? '+' : '') + hours(v); };
+    const tone = function (v) { return v > 0 ? 'yxp-bad' : (v < 0 ? 'yxp-good' : ''); };
+    if (hoursBasis() === 'both') {
+      add(box, card(label, sign(est) + ' / ' + sign(act), 'h',
+        '预计 / 实际 − ' + targetName, tone(act)));
+      return;
+    }
+    const v = hoursBasis() === 'actual' ? act : est;
+    const from = hoursBasis() === 'actual' ? '实际' : '预计';
+    add(box, card(label, sign(v), 'h', from + ' − ' + targetName, tone(v)));
+  }
+
+  /**
+   * 漏填工时的警示条。数字用的是**整个时间区间**（state.rows），不随下面的搜索 /
    * 单日下钻变化——它回答的是「这次查的这段时间里有没有漏记」，一点筛选就跳数会看不懂。
    */
   function renderMissingBar(sec) {
@@ -1324,8 +1402,15 @@
     const total = countMissing(state.rows);
     if (!total) return;
     const bar = el('div', 'yxp-note yxp-badnote yxp-missbar');
+    let what = '「' + fieldLabel('est') + '」';
+    if (hoursBasis() === 'actual') what = '「' + fieldLabel('act') + '」';
+    else if (hoursBasis() === 'both') {
+      // both 口径下分别报数，只说「没填全」用户会不知道该补哪一个
+      const m = NS.stats.missingHours(state.rows, 'both');
+      what = '工时（' + fieldLabel('est') + '缺 ' + m.est + ' 条、' + fieldLabel('act') + '缺 ' + m.act + ' 条）';
+    }
     add(bar, el('span', '', '⚠ ' + state.start + ' ~ ' + state.end + ' 这段里有 ' + total +
-      ' 条任务没填「预计工时」，已在下方明细里标红并置顶。'));
+      ' 条任务没填' + what + '，已在下方明细里标红并置顶。'));
     add(bar, btn('yxp-btn yxp-tiny', state.missingOnly ? '看全部' : '只看这 ' + total + ' 条', toggleMissingOnly));
     add(sec, bar);
   }
@@ -1357,10 +1442,25 @@
       isWorkday: function (ymd) { return NS.workcalendar.classify(ymd).workday; }
     }) || [];
 
+    // 一个格子只能有一种颜色，所以热力图必须落到单一字段上；both 口径给个切换让用户自己选
+    const field = state.heatField === 'act' || state.heatField === 'est'
+      ? state.heatField : primaryField();
+    const fieldName = fieldLabel(field);
+
     const head = el('h3', 'yxp-sechead', '日历热力图');
     add(head, el('span', 'yxp-sub', '按「' + basisLabel(state.dateBasis) +
-      '」归集 · 格子内为当日预计工时（h），色深同口径 · 点某天筛选下方明细'));
+      '」归集 · 格子内为当日' + fieldName + '（h），色深同口径 · 点某天筛选下方明细'));
     add(head, el('div', 'yxp-spacer'));
+    if (hoursBasis() === 'both') {
+      const sw = el('div', 'yxp-tabs');
+      [['est', fieldLabel('est')], ['act', fieldLabel('act')]].forEach(function (pair) {
+        add(sw, btn('yxp-tab' + (field === pair[0] ? ' on' : ''), pair[1], function () {
+          state.heatField = pair[0];
+          renderCalendar();
+        }));
+      });
+      add(head, sw);
+    }
     add(head, legend());
     add(sec, head);
 
@@ -1370,7 +1470,7 @@
     }
 
     let max = 0;
-    days.forEach(function (d) { if (d.est > max) max = d.est; });
+    days.forEach(function (d) { const v = d[field]; if (v > max) max = v; });
 
     const wrap = el('div', 'yxp-calwrap');
     const grid = el('div', 'yxp-cal');
@@ -1384,18 +1484,20 @@
     for (let i = 0; i < lead; i++) add(grid, el('div', 'yxp-day empty'));
 
     days.forEach(function (d) {
-      const lv = heatLevel(d.est, max);
+      const val = d[field];
+      const lv = heatLevel(val, max);
       const cls = ['yxp-day', 'lv' + lv];
       if (!d.isWorkday) cls.push('weekend');
-      if (d.isWorkday && d.target > 0 && d.est < d.target) cls.push('short');
+      if (d.isWorkday && d.target > 0 && val < d.target) cls.push('short');
       if (state.dayFilter === d.ymd) cls.push('on');
       const cell = btn(cls.join(' '), '', function () { onPickDay(d.ymd); });
       const dd = U.parseYMD(d.ymd);
       const dayNum = dd ? (dd.getDate() === 1 ? (dd.getMonth() + 1) + '/1' : String(dd.getDate())) : d.ymd;
-      const hv = el('div', 'h', d.est ? hours(d.est) : '·');
-      if (d.est) add(hv, el('small', 'yxp-unit', 'h'));
+      const hv = el('div', 'h', val ? hours(val) : '·');
+      if (val) add(hv, el('small', 'yxp-unit', 'h'));
       add(cell, el('div', 'd', dayNum), hv);
-      cell.title = d.ymd + ' · ' + d.count + ' 个任务 · 预计 ' + hours(d.est) + 'h / 实际 ' + hours(d.act) + 'h' +
+      cell.title = d.ymd + ' · ' + d.count + ' 个任务 · ' + fieldLabel('est') + ' ' + hours(d.est) +
+        'h / ' + fieldLabel('act') + ' ' + hours(d.act) + 'h' +
         (d.deficit > 0 ? ' · 缺 ' + hours(d.deficit) + 'h' : '');
       cell.dataset.ymd = d.ymd;
       add(grid, cell);
@@ -1482,16 +1584,18 @@
     add(sec, head);
 
     const rows = visibleRows();
-    const groups = NS.stats.groupBy(rows, state.groupTab) || [];
+    const groups = NS.stats.groupBy(rows, state.groupTab, primaryField()) || [];
     if (!groups.length) {
       add(sec, el('div', 'yxp-status', '没有可分组的数据。'));
       return;
     }
 
+    // 条形长度按主口径的工时；该口径全是 0 时退回按条数，免得画出一排空条
+    const pf = primaryField();
     let maxEst = 0;
     let maxCount = 0;
     groups.forEach(function (g) {
-      if (g.est > maxEst) maxEst = g.est;
+      if (g[pf] > maxEst) maxEst = g[pf];
       if (g.count > maxCount) maxCount = g.count;
     });
     const useEst = maxEst > 0;
@@ -1506,7 +1610,7 @@
       label.title = String(g.label || g.key || '');
       const track = el('div', 'yxp-bartrack');
       const fill = el('div', 'yxp-barfill');
-      const metric = useEst ? g.est : g.count;
+      const metric = useEst ? g[primaryField()] : g.count;
       fill.style.width = Math.max(2, Math.round((metric / (max || 1)) * 100)) + '%';
       add(track, fill);
       const val = el('div', 'yxp-barval',

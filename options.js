@@ -29,6 +29,20 @@
     ['last7', '近 7 天'],
     ['last30', '近 30 天']
   ];
+  const HOURS_BASIS_OPTIONS = [
+    { value: 'estimated', label: '预计工时（默认）' },
+    { value: 'actual', label: '实际工时' },
+    { value: 'both', label: '两者都看' }
+  ];
+
+  // 「实际工时」在云效里是工时登记的累加值，团队不用工时登记的话这一列全是 0，
+  // 选了会比不选还难看 —— 这句必须写在设置页上，别让人选完才发现。
+  const BASIS_HINTS = {
+    estimated: '按「预计工时」字段统计。适合排期驱动、靠计划工时管理进度的团队。',
+    actual: '按「实际工时」字段统计。注意：云效里它是工时登记的累加值，团队没在用工时登记的话这一列会全是 0。',
+    both: '两个字段都要用。日均、工作日偏差会各给一个数，未填提醒只要缺一个就标红。'
+  };
+
   const THEME_OPTIONS = [
     ['auto', '跟随系统'],
     ['light', '亮色'],
@@ -285,6 +299,8 @@
     $('defaultRange').value = p.defaultRange;
     $('theme').value = p.theme;
     $('excludeCancelled').checked = !!p.excludeCancelled;
+    $('hoursBasis').value = p.hoursBasis || 'estimated';
+    $('hoursBasisHint').textContent = BASIS_HINTS[$('hoursBasis').value] || '';
     $('warnMissingEst').checked = p.warnMissingEst !== false;
     $('showSummaryBar').checked = !!p.showSummaryBar;
     renderSummaryBarItems(p);
@@ -328,6 +344,10 @@
     });
     $('excludeCancelled').addEventListener('change', function () {
       savePrefs({ excludeCancelled: this.checked });
+    });
+    $('hoursBasis').addEventListener('change', function () {
+      $('hoursBasisHint').textContent = BASIS_HINTS[this.value] || '';
+      savePrefs({ hoursBasis: this.value });
     });
     $('warnMissingEst').addEventListener('change', function () {
       savePrefs({ warnMissingEst: this.checked });
@@ -735,6 +755,7 @@
     $('foot-ver').textContent = '云效工时统计' + (version ? ' v' + version : '') + ' · 数据只存在本地，无埋点无上传';
 
     fillSelect($('dateBasis'), BASIS_OPTIONS);
+    fillSelect($('hoursBasis'), HOURS_BASIS_OPTIONS);
     fillSelect($('defaultRange'), RANGE_OPTIONS);
     fillSelect($('theme'), THEME_OPTIONS);
 
