@@ -57,7 +57,7 @@
 
 **安装地址**（点开油猴会自动弹出安装页）：
 
-<https://cdn.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main/yunxiao-worklog.user.js>
+<https://raw.githubusercontent.com/wangtao1002/yunxiao-worklog/main/yunxiao-worklog.user.js>
 
 使用者：
 
@@ -73,18 +73,19 @@
 #### 发版（维护者）
 
 ```bash
-python3 tools/build-userscript.py --host "https://cdn.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main"
+python3 tools/build-userscript.py --host "https://raw.githubusercontent.com/wangtao1002/yunxiao-worklog/main"
 git commit -am "chore: 发布 vX.Y.Z" && git push
-curl -s "https://purge.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main/yunxiao-worklog.user.js"   # 刷 CDN 缓存
 ```
 
 改代码请改 `src/`，`.user.js` 是构建产物，别直接编辑。版本号从 `manifest.json` 读，
 油猴靠 `@version` 判断要不要更新——**发版前记得把 manifest 的版本号加上去**。
 
-> **为什么走 jsDelivr 而不是 `raw.githubusercontent.com`**：后者在国内经常连不上
-> （实测本机直接超时），而它正是 `@updateURL` 要访问的地址——拉不到就静默不更新，
-> 用的人会一直停在老版本还不知道。jsDelivr 是 GitHub 的 CDN 镜像，内容一样，国内可达性好得多。
-> 代价是有约 12 小时的缓存，发版后用上面那条 `purge` 立刻刷掉。
+> **更新源为什么用 raw 而不是 jsDelivr CDN**：实测这边的网络下 jsDelivr 四个节点
+> （cdn / fastly / gcore / testingcf）**裸连全部连不上**，而 `raw.githubusercontent.com`
+> 裸连 1.1 秒返回 200。注意别被代理骗了——挂着代理测的结果正好相反，
+> 而同事的机器上大概率没有代理。**换托管前先用 `curl --noproxy '*'` 测一遍。**
+>
+> raw 也有约 5 分钟的 CDN 缓存，发版后同事最迟 5 分钟就能收到，不用手动刷。
 
 **两个版本功能完全一致**，差别只在这几处：
 
