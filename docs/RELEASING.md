@@ -141,7 +141,7 @@ env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY -u https_proxy -u http_proxy -u al
 ## 六、离线验证（不用登录云效、不发网络请求）
 
 ```bash
-node tools/smoke-test.mjs      # 纯逻辑，当前 358 项断言
+node tools/smoke-test.mjs      # 纯逻辑，当前 373 项断言
 ```
 
 界面要用浏览器看，起个本地静态服务器指到仓库根目录，然后开：

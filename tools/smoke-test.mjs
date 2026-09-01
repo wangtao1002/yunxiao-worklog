@@ -277,7 +277,7 @@ const overviewCardOrder = [
   "card(fieldLabel('act'),",
   "card('偏差',",
   "card('工作日总工时',",
-  // 两张「跟工作日目标比」的偏差卡改由 addWorkDiffCard 统一渲染（要按统计口径切换预计/实际）
+  // 两张「跟工作日目标比」的偏差卡改由 addWorkDiffCard 统一渲染（使用独立达标工时口径）
   "addWorkDiffCard(workCards, '工时偏差'",
   "card('截止今日工时',",
   "addWorkDiffCard(workCards, '截止今日工时偏差'"
@@ -291,10 +291,19 @@ ok('panel 工时偏差在本周本月条件之外，所有时间范围都有',
   panelSource.indexOf("card('工时偏差',") <
   panelSource.indexOf("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
 ok('panel 工时偏差正数红色、负数绿色（两张卡共用 addWorkDiffCard 的 tone）',
-  panelSource.includes("return v > 0 ? 'yxp-bad' : (v < 0 ? 'yxp-good' : '');"));
+  panelSource.includes("const tone = diff > 0 ? 'yxp-bad' : (diff < 0 ? 'yxp-good' : '');"));
+ok('panel 两张工作日偏差卡统一使用独立达标工时口径',
+  panelSource.includes('NS.stats.workHoursTotal(rows, workDiffBasis())') &&
+  (panelSource.match(/addWorkDiffCard\(workCards, /g) || []).length === 2);
+ok('panel 任务状态范围统一作用于概览、日历、分组和明细',
+  panelSource.includes('function taskScopeRows()') &&
+  panelSource.includes('NS.stats.byDay(taskScopeRows(), state.start, state.end') &&
+  panelSource.includes('return taskScopeRows().filter(function (r)'));
+ok('panel 任务状态范围不改变已编辑任务的待提交写回清单',
+  /function changedList\(\) \{[\s\S]{0,160}state\.rows\.forEach/.test(panelSource));
 ok('panel 概览按统计口径裁剪：预计卡看 usesEst、实际卡看 usesAct、偏差卡只在 both 出现',
   panelSource.includes("if (usesEst()) {") && panelSource.includes("if (usesAct()) {") &&
-  panelSource.includes("if (hoursBasis() === 'both') {\n      const diff"));
+  /if \(hoursBasis\(\) === 'both'\) \{\r?\n\s+const diff/.test(panelSource));
 ok('panel 明细表按口径过滤列',
   panelSource.includes("if (c.key === 'est') return usesEst();") &&
   panelSource.includes("if (usesEst()) add(tr, numCell(r, 'est', tr));"));
@@ -302,7 +311,6 @@ ok('panel 排序列被藏掉时退回默认',
   panelSource.includes("state.sortKey = 'planEnd';"));
 ok('panel 只用预计时不显示「按预计工时一键填充」（它写的是实际工时）',
   panelSource.includes('if (canEditAct && usesAct()) {'));
-
 ok('panel 截止今日两卡只对本周、本月显示',
   panelSource.includes("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
 ok('panel 截止今日偏差与工时偏差走同一套渲染，颜色规则一致',
@@ -378,6 +386,16 @@ const rowsNoMap = stats.normalize(ITEMS, null, { excludeCancelled: true });
 eq('fieldMap 为 null 时工时全 0', rowsNoMap.map((r) => r.est + r.act), [0, 0, 0, 0]);
 eq('normalize 脏输入不炸', stats.normalize(null, FIELD_MAP, {}).length, 0);
 eq('normalize 跳过脏元素', stats.normalize([null, 1, itemA], FIELD_MAP, {}).length, 1);
+eq('任务状态范围：全部任务保持原数据', stats.filterByTaskScope(rows, 'all').map((r) => r.id),
+  ['ida', 'idb', 'idc', 'ide']);
+eq('任务状态范围：仅已完成只认云效 finishTime', stats.filterByTaskScope(rows, 'completed').map((r) => r.id),
+  ['idb', 'ide']);
+eq('达标工时口径：逐任务取预计/实际较大值后合计',
+  stats.workHoursTotal([{ est: 6, act: 2 }, { est: 1, act: 5 }], 'max'), 11);
+eq('达标工时口径：可固定使用预计或实际', [
+  stats.workHoursTotal([{ est: 6, act: 2 }, { est: 1, act: 5 }], 'estimated'),
+  stats.workHoursTotal([{ est: 6, act: 2 }, { est: 1, act: 5 }], 'actual')
+], [7, 7]);
 
 const rowsByStart = stats.normalize([itemA], FIELD_MAP, { dateBasis: 'planStart' });
 eq('dateBasis=planStart 时 date 取计划开始', rowsByStart[0].date, '2026-08-17');
@@ -602,6 +620,8 @@ const cfg0 = await store.get();
 eq('store 默认 dryRun = true（首次使用必须是预演）', cfg0.prefs.dryRun, true);
 eq('store 默认每日标准工时', cfg0.prefs.dailyTargetHours, 8);
 eq('store 默认归集口径', cfg0.prefs.dateBasis, 'planEnd');
+eq('store 默认统计全部任务', cfg0.prefs.taskScope, 'all');
+eq('store 默认达标工时逐任务取较大值', cfg0.prefs.workDiffBasis, 'max');
 eq('store 默认时间范围', cfg0.prefs.defaultRange, 'thisWeek');
 eq('store 默认悬浮条显示项为空（沿用旧版样式）', cfg0.prefs.summaryBarItems, []);
 eq('store 默认团队统计包含自己', cfg0.prefs.includeSelf, true);
@@ -1392,6 +1412,7 @@ load('src/summarybar.js');
 const sb = YXWT.summarybar;
 const summarybarSource = readFileSync(path.join(ROOT, 'src/summarybar.js'), 'utf8');
 const optionsSource = readFileSync(path.join(ROOT, 'options.js'), 'utf8');
+const optionsHtml = readFileSync(path.join(ROOT, 'options.html'), 'utf8');
 
 ok('summarybar 展开和折叠品牌区都允许拖动',
   summarybarSource.includes("const brandButton = button && button.classList.contains('yxwt-sb__brand');") &&
@@ -1407,10 +1428,28 @@ ok('summarybar 工作日目标人数使用实际选中成员，排除自己后�
 ok('panel 工作日目标人数跟随包含/排除自己状态',
   panelSource.includes('dailyTarget(), pickedCount()'));
 ok('options 改默认范围时同时过滤并保存悬浮条指标',
-  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, select.value)') &&
+  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, select.value, before.hoursBasis)') &&
   optionsSource.includes('defaultRange: select.value, summaryBarItems: nextItems'));
+ok('options 勾选悬浮条指标时使用当前统计展示口径',
+  optionsSource.includes('summaryItems.normalize(values, p.defaultRange, p.hoursBasis)'));
+ok('options 改统计展示口径时清除并保存不再可用的悬浮条指标',
+  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, before.defaultRange, next)') &&
+  optionsSource.includes('savePrefs({ hoursBasis: next, summaryBarItems: nextItems })'));
 ok('options 支持一键恢复悬浮条默认显示',
   optionsSource.includes("savePrefs({ summaryBarItems: [] })"));
+const generalSettingOrder = ['id="dateBasis"', 'id="taskScope"', 'id="workDiffBasis"', 'id="defaultRange"']
+  .map((needle) => optionsHtml.indexOf(needle));
+ok('options 两个新设置紧跟默认归集口径，之后才是默认时间范围',
+  generalSettingOrder.every((pos, i) => pos >= 0 && (i === 0 || pos > generalSettingOrder[i - 1])), generalSettingOrder);
+ok('options 保存任务状态范围和达标工时口径',
+  optionsSource.includes('savePrefs({ taskScope: this.value })') &&
+  optionsSource.includes('savePrefs({ workDiffBasis: this.value })'));
+ok('summarybar 对快照先按任务状态过滤，并用独立口径计算工作日偏差',
+  summarybarSource.includes('NS.stats.filterByTaskScope(snapshot.rows || [], prefs.taskScope)') &&
+  summarybarSource.includes('NS.stats.workHoursTotal(rows, prefs.workDiffBasis)'));
+ok('summarybar 自定义日均按统计展示口径选择预计、实际或两者',
+  summarybarSource.includes("prefs.hoursBasis === 'actual' ? sum.avgPerDayAct : sum.avgPerDay") &&
+  summarybarSource.includes("prefs.hoursBasis === 'both'"));
 
 const GROUPS = [
   { identifier: '29', name: '已完成', count: 2467 },

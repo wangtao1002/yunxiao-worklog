@@ -284,6 +284,19 @@
     </div>
 
     <div class="row">
+      <div class="lb">任务状态范围<small>全部任务，或仅统计云效已标记完成的任务</small></div>
+      <div><select id="taskScope"></select></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">达标工时口径<small>“工时偏差”和“截止今日工时偏差”拿哪组工时与工作日目标比较</small></div>
+      <div>
+        <select id="workDiffBasis"></select>
+        <div class="hint" id="workDiffBasisHint"></div>
+      </div>
+    </div>
+
+    <div class="row">
       <div class="lb">默认时间范围<small>悬浮统计和打开面板时默认使用的区间</small></div>
       <div><select id="defaultRange"></select></div>
     </div>
@@ -305,7 +318,7 @@
     </div>
 
     <div class="row">
-      <div class="lb">统计口径<small>热力图、日均工时、工作日偏差、未填提醒、分组排序拿哪个字段当基准</small></div>
+      <div class="lb">统计展示口径<small>热力图、日均工时、未填提醒和分组排序拿哪个字段当基准</small></div>
       <div>
         <select id="hoursBasis"></select>
         <div class="hint" id="hoursBasisHint"></div>
@@ -314,7 +327,7 @@
 
     <div class="row">
       <div class="lb">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数</small></div>
-      <div><label class="check"><input type="checkbox" id="warnMissingEst"><span>提醒没填工时的任务（按上面的统计口径）</span></label></div>
+      <div><label class="check"><input type="checkbox" id="warnMissingEst"><span>提醒没填工时的任务（按上面的统计展示口径）</span></label></div>
     </div>
 
     <div class="row">

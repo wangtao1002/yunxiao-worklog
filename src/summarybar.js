@@ -31,6 +31,8 @@
     defaultRange: 'thisWeek',
     summaryBarItems: [],
     includeSelf: true,
+    taskScope: 'all',
+    workDiffBasis: 'max',
     excludeCancelled: true,
     warnMissingEst: true,
     hoursBasis: 'estimated',
@@ -867,7 +869,10 @@
     const overdue = NS.stats.overdue(rows, Date.now()) || { rate: 0 };
     const work = NS.workcalendar.summarize(range.start, range.end,
       prefs.dailyTargetHours, memberCount);
-    const workDiff = (Number(sum.act) || 0) - work.hours;
+    const workDiff = NS.stats.workHoursTotal(rows, prefs.workDiffBasis) - work.hours;
+    const avg = prefs.hoursBasis === 'both'
+      ? fmtHours(sum.avgPerDay) + ' / ' + fmtHours(sum.avgPerDayAct)
+      : fmtHours(prefs.hoursBasis === 'actual' ? sum.avgPerDayAct : sum.avgPerDay);
     const values = {
       range: { v: range.label },
       count: { v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条' },
@@ -877,7 +882,7 @@
         v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
         tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
       },
-      avgPerDay: { v: fmtHours(sum.avgPerDay) + ' h' },
+      avgPerDay: { v: avg + ' h' },
       overdueRate: { v: fmtHours(overdue.rate) + ' %', tone: overdue.rate > 20 ? 'bad' : '' },
       missingEst: { v: String(Number(missing) || 0) + ' 条', tone: missing > 0 ? 'bad' : 'good' },
       workdayTotal: { v: fmtHours(work.hours) + ' h', tone: work.unsupportedYears.length ? 'warn' : '' },
@@ -892,7 +897,7 @@
       const throughEnd = today < range.end ? today : range.end;
       const through = NS.workcalendar.summarize(range.start, throughEnd,
         prefs.dailyTargetHours, memberCount);
-      const throughDiff = (Number(sum.act) || 0) - through.hours;
+      const throughDiff = NS.stats.workHoursTotal(rows, prefs.workDiffBasis) - through.hours;
       values.throughToday = {
         v: fmtHours(through.hours) + ' h', tone: through.unsupportedYears.length ? 'warn' : ''
       };
@@ -951,6 +956,7 @@
       }
     }
     let title = '统计范围：' + range.label + '（' + range.start + ' ~ ' + range.end + '）';
+    if (prefs.taskScope === 'completed') title += '\n任务状态范围：仅已完成';
     if (savedAt) title += '\n本地快照：' + new Date(savedAt).toLocaleString();
     if (missing > 0) {
       const what = state.prefs && state.prefs.hoursBasis === 'actual' ? '「实际工时」'
@@ -1032,7 +1038,7 @@
       }
       if (seq !== state.seq) return;
 
-      const rows = snapshot.rows || [];
+      const rows = NS.stats.filterByTaskScope(snapshot.rows || [], prefs.taskScope);
       const sum = NS.stats.summarize(rows);
       const fieldMap = scope.fieldMap;
       const hasFieldMap = !!(fieldMap && (fieldMap.estimated || fieldMap.actual));
@@ -1136,6 +1142,8 @@
       a.defaultRange === b.defaultRange &&
       JSON.stringify(a.summaryBarItems || []) === JSON.stringify(b.summaryBarItems || []) &&
       a.includeSelf === b.includeSelf &&
+      a.taskScope === b.taskScope &&
+      a.workDiffBasis === b.workDiffBasis &&
       a.excludeCancelled === b.excludeCancelled &&
       a.warnMissingEst === b.warnMissingEst &&
       a.hoursBasis === b.hoursBasis &&
