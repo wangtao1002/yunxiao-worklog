@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云效工时统计 · 设置</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #f4f6fa;
+    --bg-soft: #edf1f8;
+    --card: #ffffff;
+    --border: #e2e8f2;
+    --border-strong: #ccd6e6;
+    --text: #17202c;
+    --muted: #66738a;
+    --accent: #2f6bff;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(47, 107, 255, .10);
+    --danger: #cf3438;
+    --danger-soft: rgba(207, 52, 56, .09);
+    --ok: #1c8b52;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);
+    --radius: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1118;
+      --bg-soft: #151a24;
+      --card: #161b25;
+      --border: #262d3b;
+      --border-strong: #3a4457;
+      --text: #e7ecf4;
+      --muted: #8d99ad;
+      --accent: #6d9bff;
+      --accent-ink: #0e1118;
+      --accent-soft: rgba(109, 155, 255, .14);
+      --danger: #ff6f72;
+      --danger-soft: rgba(255, 111, 114, .13);
+      --ok: #4ecb8a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0e1118;
+    --bg-soft: #151a24;
+    --card: #161b25;
+    --border: #262d3b;
+    --border-strong: #3a4457;
+    --text: #e7ecf4;
+    --muted: #8d99ad;
+    --accent: #6d9bff;
+    --accent-ink: #0e1118;
+    --accent-soft: rgba(109, 155, 255, .14);
+    --danger: #ff6f72;
+    --danger-soft: rgba(255, 111, 114, .13);
+    --ok: #4ecb8a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);
+  }
+
+  html { color-scheme: light dark; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .num, input[type="number"] { font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }
+
+  /* 顶部 */
+  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }
+  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }
+  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
+  .hd .ver {
+    margin-left: auto; font-size: 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);
+  }
+
+  /* 卡片 */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;
+  }
+  .card > h2 {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;
+  }
+  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }
+  .card > h2::before {
+    content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;
+  }
+  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+  .card.danger > h2::before { background: var(--danger); }
+  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }
+
+  /* 设置行 */
+  .row {
+    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;
+    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);
+  }
+  .row.top { align-items: start; }
+  .lb { font-size: 13px; font-weight: 600; }
+  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;
+    color: var(--text); background: var(--bg-soft);
+    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;
+  }
+  input[type="number"] { max-width: 130px; }
+  input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);
+  }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }
+  .field { display: flex; align-items: center; }
+
+  .radios { display: flex; flex-direction: column; gap: 9px; }
+  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }
+  .radios label span small { display: block; color: var(--muted); font-size: 12px; }
+  .warn {
+    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);
+    background: var(--danger-soft); color: var(--danger);
+    border-radius: 9px; font-size: 12.5px; line-height: 1.65;
+  }
+  .warn strong { font-weight: 650; }
+  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */
+  .is-disabled { opacity: .5; }
+  [hidden] { display: none !important; }
+
+  /* 按钮 */
+  .btn {
+    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);
+    transition: background .12s, border-color .12s, opacity .12s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }
+  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }
+  .btn.danger:hover { background: var(--danger-soft); }
+  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }
+  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }
+  .btn.link:hover { color: var(--danger); }
+
+  /* 组织块（字段映射 / 通讯录共用） */
+  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }
+  .org:last-child { margin-bottom: 0; }
+  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }
+  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .tag {
+    font-size: 11px; padding: 1px 8px; border-radius: 999px;
+    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;
+  }
+  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }
+
+  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
+  .fm-row .k { font-size: 12.5px; font-weight: 600; }
+  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+  .fm-row input { max-width: none; background: var(--card); }
+  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .fm-foot .note { font-size: 12px; color: var(--muted); }
+
+  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+  .avatar {
+    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;
+    background: var(--accent-soft); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;
+  }
+  .person .who { min-width: 0; flex: 1; }
+  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .empty {
+    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;
+    color: var(--muted); font-size: 12.5px; text-align: center;
+  }
+
+  /* 页脚 */
+  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }
+  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }
+  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }
+  .foot details p { margin: 0 0 12px; line-height: 1.7; }
+
+  /* toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);
+    padding: 9px 18px; border-radius: 999px; font-size: 13px;
+    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.success { border-color: var(--ok); color: var(--ok); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* 确认弹窗 */
+  .mask {
+    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;
+  }
+  .dialog {
+    width: 100%; max-width: 400px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;
+  }
+  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }
+  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+  @media (max-width: 680px) {
+    .row { grid-template-columns: 1fr; gap: 8px; }
+    .fm-row { grid-template-columns: 1fr; }
+    .fm-row .k { margin-top: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hd">
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#4d84ff"/>
+          <stop offset="1" stop-color="#1b47cf"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="48" height="48" rx="11" fill="url(#lg)"/>
+      <rect x="11" y="27" width="6" height="11" rx="2" fill="#fff" opacity=".82"/>
+      <rect x="21" y="20" width="6" height="18" rx="2" fill="#fff" opacity=".92"/>
+      <rect x="31" y="12" width="6" height="26" rx="2" fill="#fff"/>
+    </svg>
+    <div>
+      <h1>云效工时统计</h1>
+      <p class="sub">本地设置 · 所有数据只保存在这台浏览器里</p>
+    </div>
+    <span class="ver" id="ver">v-</span>
+  </header>
+
+  <div class="warn" id="fatal" hidden></div>
+
+  <section class="card general" id="general">
+    <h2>常规设置</h2>
+
+    <div class="row">
+      <div class="lb">每日标准工时<small>用于日历热力图判断某天工时是否不足</small></div>
+      <div class="field">
+        <input type="number" id="dailyTargetHours" min="0" max="24" step="0.5" class="num">
+        <span class="unit">小时 / 天</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lb">默认归集口径<small>把一个工作项算到哪一天头上</small></div>
+      <div><select id="dateBasis"></select></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">默认时间范围<small>打开面板时默认选中的区间</small></div>
+      <div><select id="defaultRange"></select></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">排除已取消<small>状态名里带「取消」的工作项不计入统计</small></div>
+      <div><label class="check"><input type="checkbox" id="excludeCancelled"><span>统计时排除已取消的工作项</span></label></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">未填预计工时提醒<small>统计范围里没填「预计工时」的任务标红、置顶，合计条上也会显示条数</small></div>
+      <div><label class="check"><input type="checkbox" id="warnMissingEst"><span>提醒没填预计工时的任务</span></label></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">列表页合计条<small>在云效工作项列表页底部常驻一条合计</small></div>
+      <div><label class="check"><input type="checkbox" id="showSummaryBar"><span>显示列表页合计条</span></label></div>
+    </div>
+
+    <div class="row">
+      <div class="lb">主题</div>
+      <div><select id="theme"></select></div>
+    </div>
+
+    <div class="row top">
+      <div class="lb">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理</small></div>
+      <div class="radios">
+        <label>
+          <input type="radio" name="writeMode" value="dryRun">
+          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。</small></span>
+        </label>
+        <label>
+          <input type="radio" name="writeMode" value="live">
+          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。</small></span>
+        </label>
+        <div class="warn" id="live-warn" hidden>
+          <strong>注意：写回云效不可撤销。</strong>
+          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。
+          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，
+          确认无误后再批量提交。误写的值需要你自己在云效里改回来。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>
+      工时字段映射
+      <span class="tools"><button class="btn" id="btn-redetect" type="button">重新探测</button></span>
+    </h2>
+    <p class="hint">
+      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。
+      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；
+      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。
+    </p>
+    <div id="fieldmaps"></div>
+  </section>
+
+  <section class="card">
+    <h2>通讯录</h2>
+    <p class="hint">
+      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。
+      这里可以删掉不再需要的人。
+    </p>
+    <div id="contacts"></div>
+  </section>
+
+  <section class="card danger">
+    <h2>危险区</h2>
+    <p class="hint">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。</p>
+    <button class="btn danger" id="btn-clear" type="button">清除全部本地数据</button>
+  </section>
+
+  <footer class="foot">
+    <span id="foot-ver">云效工时统计</span>
+    <details>
+      <summary>隐私说明</summary>
+      <p>
+        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。
+        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；
+        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，
+        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。
+      </p>
+    </details>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="mask" id="mask" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <h3 id="m-title"></h3>
+    <p id="m-body"></p>
+    <div class="dlg-actions">
+      <button class="btn" id="m-cancel" type="button">取消</button>
+      <button class="btn primary" id="m-ok" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/store.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

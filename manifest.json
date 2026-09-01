@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "云效工时统计",
+  "version": "0.1.7",
+  "description": "在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://devops.aliyun.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://devops.aliyun.com/*"
+      ],
+      "js": [
+        "src/util.js",
+        "src/store.js",
+        "src/api.js",
+        "src/detect.js",
+        "src/stats.js",
+        "src/ui.js",
+        "src/panel.js",
+        "src/summarybar.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "云效工时统计（Alt+H）",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

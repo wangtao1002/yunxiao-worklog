@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>云效工时统计 · 离线预览</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+         background:#f6f7f9; color:#1d2333; }
+  @media (prefers-color-scheme: dark){ body{ background:#14161a; color:#e6e8ee; } }
+  .bar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+         padding:12px 16px; background:rgba(127,127,127,.08); backdrop-filter:blur(8px); }
+  .bar h1 { font-size:15px; margin:0 12px 0 0; }
+  button { font:inherit; padding:5px 12px; border-radius:7px; border:1px solid rgba(127,127,127,.35);
+           background:transparent; color:inherit; cursor:pointer; }
+  button:hover { background:rgba(127,127,127,.14); }
+  button.on { background:#2f6bff; border-color:#2f6bff; color:#fff; }
+  main { padding:24px 16px; max-width:900px; }
+  code { background:rgba(127,127,127,.14); padding:1px 5px; border-radius:4px; }
+  .note { opacity:.75; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>云效工时统计 · 离线预览</h1>
+  <button id="open">打开面板</button>
+  <button id="bar">挂合计条</button>
+  <span style="flex:1"></span>
+  <span class="note">数据集：</span>
+  <button class="ds on" data-ds="normal">正常（40 条 / 3 人）</button>
+  <button class="ds" data-ds="empty">空数据</button>
+  <button class="ds" data-ds="single">只有一天</button>
+  <button class="ds" data-ds="huge">大数据量（400 条）</button>
+  <button class="ds" data-ds="nofields">未识别到工时字段</button>
+  <button class="ds" data-ds="error">接口报错</button>
+  <span class="note">主题：</span>
+  <button class="th on" data-th="auto">跟随系统</button>
+  <button class="th" data-th="light">亮色</button>
+  <button class="th" data-th="dark">暗色</button>
+</div>
+<main>
+  <p>这个页面用<b>假数据</b>驱动真实的面板与合计条代码，不需要登录云效、不发任何网络请求。</p>
+  <p class="note">用途：验证渲染与交互（热力图点选、表头排序、编辑态、空/错误状态、亮暗色），
+     以及给同事演示。它不打进插件包，只是开发工具。</p>
+  <p class="note">快捷键 <code>Alt+H</code> 同样可用（content.js 也被加载了）。</p>
+</main>
+
+<script>
+/* ---- chrome API 桩：内存版 storage ---- */
+(function () {
+  const mem = {};
+  const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+  window.chrome = {
+    storage: {
+      local: {
+        get: () => Promise.resolve(clone(mem)),
+        set: (o) => { Object.assign(mem, clone(o)); return Promise.resolve(); },
+        remove: (k) => { (Array.isArray(k) ? k : [k]).forEach((x) => delete mem[x]); return Promise.resolve(); },
+        clear: () => { Object.keys(mem).forEach((k) => delete mem[k]); return Promise.resolve(); }
+      },
+      onChanged: { addListener() {}, removeListener() {} }
+    },
+    runtime: {
+      onMessage: { addListener() {} },
+      sendMessage: () => Promise.resolve({ ok: true }),
+      openOptionsPage: () => window.open('../options.html', '_blank'),
+      getManifest: () => ({ version: '0.1.0 (preview)' }),
+      lastError: null
+    }
+  };
+})();
+</script>
+<script src="../src/util.js"></script>
+<script src="../src/store.js"></script>
+<script src="../src/api.js"></script>
+<script src="../src/detect.js"></script>
+<script src="../src/stats.js"></script>
+<script src="../src/ui.js"></script>
+<script src="../src/panel.js"></script>
+<script src="../src/summarybar.js"></script>
+<script src="fixtures.js"></script>
+<script>
+/* ---- 用假数据替换 api / detect 的网络部分 ---- */
+(function () {
+  const Y = window.YXWT;
+  const FX = window.YXWT_FIXTURES;
+  let mode = 'normal';
+
+  Y.detect.context = () => FX.context(mode);
+  Y.detect.fieldMap = () => FX.fieldMap(mode);
+  Y.detect.describe = (m) => (m ? '（预览）预计工时 = ' + (m.estimated && m.estimated.name) : '（预览）未识别');
+  Y.api.listWorkitems = (opts) => FX.listWorkitems(mode, opts);
+  Y.api.getView = () => Promise.resolve(FX.view());
+  Y.api.getFieldValues = (id) => Promise.resolve(FX.fieldValues(id));
+  Y.api.saveFieldValue = (id, fid, v, o) =>
+    Promise.resolve({ ok: true, dryRun: !o || o.dryRun !== false, would: { workitemId: id, fieldId: fid, from: '0', to: v } });
+
+  // 面板有「2 分钟内不重复取数」的缓存，预览里切数据集要强制走一次刷新
+  function forceReload() {
+    if (!(Y.panel.isOpen && Y.panel.isOpen())) { Y.panel.open(); return; }
+    Y.panel.close();
+    Y.panel.open();
+    setTimeout(() => {
+      const host = document.getElementById('yxwt-panel');
+      if (!host) return;
+      const btn = [...host.shadowRoot.querySelectorAll('button')]
+        .find((x) => x.textContent.trim() === '刷新');
+      if (btn) btn.click();
+    }, 120);
+  }
+
+  document.getElementById('open').onclick = () => Y.panel.open();
+  window.__forceReload = forceReload;
+  document.getElementById('bar').onclick = () => Y.summarybar.init();
+
+  document.querySelectorAll('.ds').forEach((b) => {
+    b.onclick = () => {
+      document.querySelectorAll('.ds').forEach((x) => x.classList.remove('on'));
+      b.classList.add('on');
+      mode = b.dataset.ds;
+      forceReload();
+    };
+  });
+  document.querySelectorAll('.th').forEach((b) => {
+    b.onclick = async () => {
+      document.querySelectorAll('.th').forEach((x) => x.classList.remove('on'));
+      b.classList.add('on');
+      await Y.store.setPrefs({ theme: b.dataset.th });
+      forceReload();
+    };
+  });
+})();
+</script>
+<script src="../src/content.js"></script>
+</body>
+</html>

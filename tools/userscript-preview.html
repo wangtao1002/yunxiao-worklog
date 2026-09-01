@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>云效工时统计 · 油猴版离线预览</title>
+<style>
+  body { margin:0; font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+         background:#f6f7f9; color:#1d2333; }
+  .bar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+         padding:12px 16px; background:rgba(127,127,127,.08); }
+  .bar h1 { font-size:15px; margin:0 12px 0 0; }
+  button { font:inherit; padding:5px 12px; border-radius:7px; border:1px solid rgba(127,127,127,.35);
+           background:transparent; color:inherit; cursor:pointer; }
+  button:hover { background:rgba(127,127,127,.14); }
+  main { padding:20px 16px; max-width:900px; }
+  pre { background:rgba(127,127,127,.12); padding:10px; border-radius:8px; overflow:auto; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>油猴版离线预览</h1>
+  <button id="panel">打开面板</button>
+  <button id="opts">打开设置（iframe）</button>
+  <button id="bar-btn">挂合计条</button>
+  <button id="dump">看 GM 存储</button>
+</div>
+<main>
+  <p>这个页面用 <b>mock 出来的 GM_* API</b> 加载真实的 <code>.user.js</code> 产物，
+     用来验证油猴版的三处改造：GM 存储垫片、iframe 设置页、菜单命令。</p>
+  <p>它不是插件的一部分，只是开发工具。跑法见 <code>tools/build-userscript.py</code> 的注释。</p>
+  <pre id="log">加载中…</pre>
+</main>
+
+<script>
+/* ---- GM_* 桩：内存版 ---- */
+(function () {
+  const mem = {};
+  const listeners = {};
+  window.__GM_MEM = mem;
+  window.__GM_MENU = [];
+  window.GM_getValue = (k, d) => (k in mem ? mem[k] : d);
+  window.GM_setValue = (k, v) => {
+    const old = mem[k];
+    mem[k] = v;
+    (listeners[k] || []).forEach((fn) => fn(k, old, v, false));
+  };
+  window.GM_deleteValue = (k) => { delete mem[k]; };
+  window.GM_addValueChangeListener = (k, fn) => {
+    (listeners[k] = listeners[k] || []).push(fn);
+    return k + ':' + (listeners[k].length - 1);
+  };
+  window.GM_registerMenuCommand = (name, fn) => { window.__GM_MENU.push({ name, fn }); return name; };
+})();
+</script>
+
+<!-- 真实构建产物。文件名带版本号，这里用固定名的软链/副本：tools/../*.user.js -->
+<script src="../云效工时统计-v0.1.7.user.js"></script>
+
+<!-- 假数据，与扩展版预览页共用 -->
+<script src="fixtures.js"></script>
+<script>
+(function () {
+  const Y = window.YXWT;
+  const FX = window.YXWT_FIXTURES;
+  const log = (s) => { document.getElementById('log').textContent = s; };
+
+  if (!Y) { log('❌ YXWT 没挂上，脚本没跑起来'); return; }
+
+  // 与扩展版预览页同款的接口桩
+  Y.detect.context = () => FX.context('normal');
+  Y.detect.fieldMap = () => FX.fieldMap('normal');
+  Y.detect.describe = (m) => '（预览）预计工时 = ' + (m && m.estimated && m.estimated.name);
+  Y.api.listWorkitems = (opts) => FX.listWorkitems('normal', opts);
+  Y.api.getView = () => Promise.resolve(FX.view());
+  Y.api.getFieldValues = (id) => Promise.resolve(FX.fieldValues(id));
+  Y.api.saveFieldValue = (id, fid, v, o) =>
+    Promise.resolve({ ok: true, dryRun: !o || o.dryRun !== false, would: { workitemId: id, fieldId: fid, from: '0', to: v } });
+
+  document.getElementById('panel').onclick = () => Y.panel.open();
+  document.getElementById('opts').onclick = () => Y.__openOptions();
+  document.getElementById('bar-btn').onclick = () => Y.summarybar.init();
+  document.getElementById('dump').onclick = () => log(JSON.stringify(window.__GM_MEM, null, 2));
+
+  log([
+    '模块: ' + Object.keys(Y).filter((k) => !k.startsWith('__')).join(', '),
+    '版本: ' + Y.__version,
+    '菜单命令: ' + window.__GM_MENU.map((m) => m.name).join(' / '),
+    '设置页 HTML: ' + (Y.__optionsHtml ? Y.__optionsHtml.length + ' 字符' : '❌ 没打进来'),
+    '设置页工厂: ' + (typeof Y.__optionsApp === 'function' ? '✅' : '❌'),
+    'chrome 垫片: ' + (Y.__chromeShim ? Object.keys(Y.__chromeShim).join(',') : '❌')
+  ].join('\n'));
+})();
+</script>
+</body>
+</html>
