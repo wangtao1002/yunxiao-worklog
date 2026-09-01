@@ -57,7 +57,7 @@
 
 **安装地址**（点开油猴会自动弹出安装页）：
 
-<https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js>
+<https://cdn.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main/yunxiao-worklog.user.js>
 
 使用者：
 
@@ -73,9 +73,9 @@
 #### 发版（维护者）
 
 ```bash
-python3 tools/build-userscript.py --host "https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main"
+python3 tools/build-userscript.py --host "https://cdn.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main"
 git commit -am "chore: 发布 vX.Y.Z" && git push
-curl -s "https://purge.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js"   # 刷 CDN 缓存
+curl -s "https://purge.jsdelivr.net/gh/wangtao1002/yunxiao-worklog@main/yunxiao-worklog.user.js"   # 刷 CDN 缓存
 ```
 
 改代码请改 `src/`，`.user.js` 是构建产物，别直接编辑。版本号从 `manifest.json` 读，
