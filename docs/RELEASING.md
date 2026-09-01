@@ -29,20 +29,28 @@
 
 ```bash
 # 1. 改 manifest.json 的 version —— 油猴靠 @version 判断要不要更新，不改就不会推给别人
-# 2. 构建（不要传 --host，理由见「三、油猴的坑」）
+# 2. 在 CHANGELOG.md 顶部补这一版：新增 / 变更 / 修复，写清楚「用户能感知到什么」
+# 3. 构建（不要传 --host，理由见「三、油猴的坑」）
 python3 tools/build-userscript.py
+node tools/smoke-test.mjs
 
-# 3. 推 GitHub（存档 + 给 Greasy Fork 当同步源）
+# 4. 提交 + 打 tag + 推（tag 要一起推，否则 GitHub 上看不到版本点）
 git commit -am "chore: 发布 vX.Y.Z"
-env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY git push     # 禁代理，理由见「五、网络」
+git tag -a vX.Y.Z -m "vX.Y.Z 一句话说清这版干了什么"
+env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY git push            # 禁代理，理由见「五、网络」
+env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY git push --tags
 
-# 4. 去脚本页点「更新代码」，把 yunxiao-worklog.user.js 的内容贴进去发布
+# 5. 去脚本页点「更新代码」，把 yunxiao-worklog.user.js 的内容贴进去发布
 ```
 
-第 4 步可以省掉：Greasy Fork 脚本管理页有 **「从 URL 同步」**，配上 GitHub 的 raw 地址后它会定期自己拉。
+**第 2 步和 tag 都别省。** 前六个版本就是一个 tag 没打、也没有 CHANGELOG，
+回头想查「0.2.1 到底改了什么」只能翻 commit 记录，用的人更是完全不知道更新了啥。
+
+第 5 步可以省掉：Greasy Fork 脚本管理页有 **「从 URL 同步」**，配上 GitHub 的 raw 地址后它会定期自己拉。
 Greasy Fork 服务器在国外，拉 raw 没有障碍。
 
-发完顺手跑一遍 `node tools/smoke-test.mjs`（当前 291 项断言）。
+发完对一下三处版本号是否一致：`manifest.json`、构建产物的 `@version`、README 头部那行。
+（README 那行踩过坑：替换没加断言、静默失败，一路停在旧版本号。）
 
 ### Chrome 扩展的包
 
@@ -133,7 +141,7 @@ env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY -u https_proxy -u http_proxy -u al
 ## 六、离线验证（不用登录云效、不发网络请求）
 
 ```bash
-node tools/smoke-test.mjs      # 纯逻辑，291 项断言
+node tools/smoke-test.mjs      # 纯逻辑，当前 373 项断言
 ```
 
 界面要用浏览器看，起个本地静态服务器指到仓库根目录，然后开：
