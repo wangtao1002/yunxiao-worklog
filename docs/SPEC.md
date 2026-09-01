@@ -16,7 +16,7 @@
   })();
   ```
 - manifest 里的加载顺序（**依赖只能向前**）：
-  `util.js → store.js → api.js → detect.js → stats.js → ui.js → panel.js → summarybar.js → content.js`
+  `util.js → summary-items.js → store.js → api.js → detect.js → stats.js → workcalendar.js → range-data.js → ui.js → panel.js → summarybar.js → content.js`
 - 语言：界面中文。代码注释中文，只在不显而易见处写。
 - 缩进 2 空格，单引号，无分号结尾风格**不用**——统一**带分号**。
 - 严禁 `eval`、`innerHTML` 拼接用户数据（用 `textContent` 或 `escapeHtml`）。
@@ -60,11 +60,14 @@ const DEFAULTS = {
   version: 1,
   fieldMap: {},   // { [orgId]: FieldMap }
   contacts: {},   // { [orgId]: { [userId]: {id, name, avatar} } }
+  rangeSnapshots: {}, // 最近 12 个“组织+成员+口径+起止日期”的本地区间快照
   prefs: {
     dailyTargetHours: 8,
     dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
     defaultRange: 'thisWeek',
+    summaryBarItems: [],       // 空数组沿用旧版；非空按选择显示且强制包含 range
     members: [],               // 团队视图里额外纳入的 userId 数组（不含自己）
+    includeSelf: true,         // 是否把自己计入团队统计
     showSummaryBar: true,
     excludeCancelled: true,    // 统计时是否排除"已取消"状态
     warnMissingEst: true,      // 是否提醒"没填预计工时"的任务（标红 + 置顶 + 合计条角标）
@@ -80,6 +83,9 @@ YXWT.store = {
   getContacts(orgId),               // -> {userId: {id,name,avatar}}
   addContacts(orgId, users),        // users: [{identifier|id, realName|displayName|name, avatar}]，去重合并
   removeContact(orgId, userId),
+  getRangeSnapshot(cacheKey),
+  setRangeSnapshot(cacheKey, snapshot),
+  patchRangeSnapshots(patches),       // 写回成功后修正所有命中工作项的快照，不改变 savedAt
   onChange(cb)                      // 包一层 chrome.storage.onChanged
 };
 ```
@@ -297,8 +303,10 @@ YXWT.panel = { toggle(), open(), close(), isOpen() };
   另有「从当前视图导入同事」按钮（扫当前页工作项的 assignedTo 灌进通讯录）
 - 「刷新」按钮 + 加载进度文案
 
-**概览卡**（6 个 + 1 个条件卡）：任务数 / 预计工时 / 实际工时 / 偏差 / 日均工时 / 逾期率
-（偏差为负显示绿色，正显示橙色；逾期率 >20% 显示红色）
+**概览卡**：第一行是任务数 / 预计工时 / 实际工时 / 偏差 / 日均工时 / 逾期率等常规统计。
+第二行固定从工作日总工时开始，紧跟“实际 − 工作日总工时”的工时偏差，所有时间范围都显示；
+本周、本月再追加截止今日工时，以及“实际 − 截止今日工时”的偏差。两种目标偏差均为正数红色、负数绿色，0 使用普通颜色。
+原偏差为负显示绿色，正显示橙色；逾期率 >20% 显示红色。
 
 **未填预计工时告警**（`prefs.warnMissingEst`，默认开）：判据 `isMissingEst` = 未取消且 `est <= 0`
 （字段整条没值和明确填 0 都算，`row.estMissing` 只用于提示文案的措辞）。
@@ -353,13 +361,22 @@ members = [me, ...prefs.members(仅当用户选了)]
 
 单个成员失败不能让整体失败：那个人显示为「加载失败（原因）」，其余照常统计。
 
+区间快照按组织、成员集合、归集口径、起止日期、排除取消开关和字段映射签名精确区分。
+默认区间首次无快照时加载；切换到其它无快照区间只显示「未加载」，由用户点击后仅加载当前区间。
+本月快照记录完整拉取时间；本地自然日变化后首次访问自动重新全量拉取本月。插件写回成功时同步修正所有命中工作项的快照，但不修改完整拉取时间。
+概览中的工作日总工时和截止今日工时使用随脚本打包的 2023—2026 法定休假/调休数据；缺失年份退回周一至周五并提示更新脚本。
+
 ## 8. src/summarybar.js → `YXWT.summarybar`
 
 在云效工作项列表页底部注入一条常驻统计条。
 
 - 生效路径：`/projex/workitem`（个人视图）和 `/projex/project/*/(task|req|bug|workitem)`
-- 取当前 `#viewIdentifier=` → `api.getView` → 把 `filter` 转成 `conditionGroups` → 全量拉取（不受分页 100 条限制）
-- 显示：`共 N 条 · 预计 X h · 实际 Y h · 偏差 Z h`，右侧「详细统计」按钮 → `YXWT.panel.open()`
+- 读取 `prefs.defaultRange`，与面板共用 `rangeData` 的精确区间查询和本地快照
+- `prefs.summaryBarItems` 为空时沿用 `范围 本月 · 共 N 条 · 预计 X h · 实际 Y h · 偏差 Z h`；非空时按选择显示当前区间支持的概览指标，并强制显示“范围”
+- 所有区间可选：任务数、预计、实际、偏差、日均、逾期率、未填预计、工作日总工时、工时偏差；本周、本月额外可选截止今日工时及其偏差
+- 修改默认时间范围时，必须过滤并持久化现有选择：删除新区间不支持的指标，保留仍支持的指标
+- 右侧「详细统计」按钮 → `YXWT.panel.open()`
+- 展开时蓝色“工时统计”区域、折叠时蓝色圆点均可拖动；移动超过 3px 才算拖拽，单击仍只负责折叠/展开
 - 监听 `hashchange` + `popstate` + 一个 500ms 轮询兜底（云效是 SPA，切视图不触发 hashchange 的情况要兜住）
 - 请求要 debounce 800ms，并在切换时取消上一次（用 AbortController 或序号守卫）
 - `prefs.showSummaryBar` 为 false 时不注入
@@ -393,6 +410,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 设置页（独立页面，不能直接调云效接口，所有需要接口的操作转发给 content script 或只做本地配置）：
 - 每日标准工时（number，默认 8）
 - 默认归集口径、默认时间范围
+- 悬浮条显示项（多选）：空选保持旧版显示；自定义后范围必显；默认范围变化时剔除不适用项
 - 统计时排除"已取消"（checkbox）
 - 显示列表页合计条（checkbox）
 - 主题：跟随系统 / 亮 / 暗

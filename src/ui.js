@@ -407,10 +407,11 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .yx-dlg{
   width:min(560px,100%);max-height:calc(100vh - 96px);
   display:flex;flex-direction:column;
+  color:var(--yx-text);
   background:var(--yx-surface);border:1px solid var(--yx-border);border-radius:12px;
   box-shadow:var(--yx-shadow-lg);animation:yx-pop .16s cubic-bezier(.2,.8,.3,1);
 }
-.yx-dlg-h{display:flex;align-items:center;gap:8px;padding:15px 18px 0;font-size:15px;font-weight:650;}
+.yx-dlg-h{display:flex;align-items:center;gap:8px;padding:15px 18px 0;font-size:15px;font-weight:650;color:var(--yx-text);}
 .yx-dlg.is-danger .yx-dlg-h .yx-ico{color:var(--yx-danger);}
 .yx-dlg-b{padding:9px 18px 2px;overflow:auto;font-size:13px;line-height:1.65;color:var(--yx-text-dim);
   white-space:pre-wrap;word-break:break-word;}

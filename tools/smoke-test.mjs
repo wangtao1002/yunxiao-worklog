@@ -82,6 +82,8 @@ function load(rel) {
 }
 
 load('src/util.js');
+load('src/summary-items.js');
+load('src/workcalendar.js');
 load('src/stats.js');
 load('src/store.js');
 // api.js 里有两个纯函数（viewFilterToGroups / normalizeViewSpace）必须被测到：
@@ -90,6 +92,7 @@ sandbox.fetch = () => Promise.reject(new Error('smoke-test 不联网'));
 load('src/api.js');
 // detect.matchFields 是决定插件在「别家企业」能不能用的唯一函数，必须重点测
 load('src/detect.js');
+load('src/range-data.js');
 
 const YXWT = sandbox.window.YXWT;
 const util = YXWT.util;
@@ -97,6 +100,9 @@ const stats = YXWT.stats;
 const store = YXWT.store;
 const api = YXWT.api;
 const detect = YXWT.detect;
+const workcalendar = YXWT.workcalendar;
+const rangeData = YXWT.rangeData;
+const summaryItems = YXWT.summaryItems;
 
 /* ------------------------------------------------------------------ *
  * 断言器
@@ -226,6 +232,49 @@ eq('util.fmtDateTimeForApi 止', util.fmtDateTimeForApi('2026-08-21', true), '20
 eq('util.weekStart 周一为始（输入周五）', util.toYMD(util.weekStart(util.parseYMD('2026-08-21'))), '2026-08-17');
 eq('util.weekStart 周一为始（输入周日）', util.toYMD(util.weekStart(util.parseYMD('2026-08-23'))), '2026-08-17');
 eq('util.daysBetween 含首尾', util.daysBetween('2026-08-17', '2026-08-23').length, 7);
+eq('workcalendar 识别 2026 中秋调休补班周日', workcalendar.classify('2026-09-20').workday, true);
+eq('workcalendar 识别 2026 中秋放假周五', workcalendar.classify('2026-09-25').workday, false);
+eq('workcalendar 2026-09 工作日工时（22 天 × 8h × 2 人）',
+  workcalendar.summarize('2026-09-01', '2026-09-30', 8, 2).hours, 352);
+eq('workcalendar 截止 2026-09-01 工时（1 个工作日 × 8h）',
+  workcalendar.summarize('2026-09-01', '2026-09-01', 8, 1).hours, 8);
+eq('workcalendar 未内置 2027 时按周一至周五并提示年份',
+  workcalendar.summarize('2027-01-01', '2027-01-03', 8, 1).unsupportedYears, ['2027']);
+eq('summaryItems 空选择保持旧版默认模式', summaryItems.normalize([], 'thisMonth'), []);
+eq('summaryItems 自定义项自动补上必显范围',
+  summaryItems.normalize(['actual', 'workdayDiff'], 'thisMonth'), ['range', 'actual', 'workdayDiff']);
+eq('summaryItems 本周提供截止今日两项',
+  summaryItems.available('thisWeek').slice(-2).map((x) => x.key), ['throughToday', 'throughTodayDiff']);
+eq('summaryItems 切到上月会过滤截止今日项并保留其它选择',
+  summaryItems.normalize(['range', 'workdayTotal', 'throughToday', 'throughTodayDiff'], 'lastMonth'),
+  ['range', 'workdayTotal']);
+const panelSource = readFileSync(path.join(ROOT, 'src/panel.js'), 'utf8');
+const overviewCardOrder = [
+  "card('实际工时',",
+  "card('偏差',",
+  "card('工作日总工时',",
+  "card('工时偏差',",
+  "card('截止今日工时',",
+  "card('截止今日工时偏差',"
+].map((needle) => panelSource.indexOf(needle));
+ok('panel 概览卡顺序：实际 → 偏差 → 工作日总工时 → 工时偏差 → 截止今日 → 截止今日偏差',
+  overviewCardOrder.every((pos, i) => pos >= 0 && (i === 0 || pos > overviewCardOrder[i - 1])), overviewCardOrder);
+ok('panel 工时目标卡使用独立第二行网格',
+  panelSource.includes("const workCards = el('div', 'yxp-cards yxp-workcards');") &&
+  panelSource.indexOf('add(sec, cards);') < panelSource.indexOf("const workCards = el('div', 'yxp-cards yxp-workcards');"));
+ok('panel 工时偏差在本周本月条件之外，所有时间范围都有',
+  panelSource.indexOf("card('工时偏差',") <
+  panelSource.indexOf("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
+ok('panel 工时偏差正数红色、负数绿色',
+  panelSource.includes("workDiff > 0 ? 'yxp-bad' : (workDiff < 0 ? 'yxp-good' : '')"));
+ok('panel 截止今日两卡只对本周、本月显示',
+  panelSource.includes("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
+ok('panel 截止今日偏差正数红色、负数绿色',
+  panelSource.includes("throughDiff > 0 ? 'yxp-bad' : (throughDiff < 0 ? 'yxp-good' : '')"));
+eq('rangeData 默认区间跟随 prefs', rangeData.rangeFromPrefs({ defaultRange: 'thisMonth' }).key, 'thisMonth');
+eq('rangeData 本月固定取 thisMonth 预设', rangeData.currentMonthRange().key, 'thisMonth');
+eq('rangeData 同一自然日不刷新', rangeData.isSameLocalDay(new Date(2026, 8, 1, 1), new Date(2026, 8, 1, 23)), true);
+eq('rangeData 跨自然日需要刷新', rangeData.isSameLocalDay(new Date(2026, 8, 1, 23), new Date(2026, 8, 2, 0)), false);
 eq('util.daysBetween 上限 400', util.daysBetween('2020-01-01', '2026-01-01').length, 400);
 eq('util.isWeekend(周六)', util.isWeekend('2026-08-22'), true);
 eq('util.isWeekend(周五)', util.isWeekend('2026-08-21'), false);
@@ -360,6 +409,13 @@ eq('byDay 08-21 命中 B + E 两条', [d21.count, d21.est], [2, 3.5]);
 
 const d22 = days.find((d) => d.ymd === '2026-08-22');
 eq('byDay 周六 target = 0', [d22.isWeekend, d22.target, d22.deficit], [true, 0, 0]);
+const adjustedDays = stats.byDay([], '2026-09-20', '2026-09-25', {
+  dailyTargetHours: 8,
+  isWorkday: (ymd) => workcalendar.classify(ymd).workday
+});
+eq('byDay 调休周日按工作日、法定假日周五按休息日',
+  [[adjustedDays[0].isWorkday, adjustedDays[0].target], [adjustedDays[5].isWorkday, adjustedDays[5].target]],
+  [[true, 8], [false, 0]]);
 
 const daysDefault = stats.byDay(rows, '2026-08-20', '2026-08-20', {});
 eq('byDay 未给 dailyTargetHours 时默认 8', daysDefault[0].target, 8);
@@ -489,6 +545,8 @@ eq('store 默认 dryRun = true（首次使用必须是预演）', cfg0.prefs.dry
 eq('store 默认每日标准工时', cfg0.prefs.dailyTargetHours, 8);
 eq('store 默认归集口径', cfg0.prefs.dateBasis, 'planEnd');
 eq('store 默认时间范围', cfg0.prefs.defaultRange, 'thisWeek');
+eq('store 默认悬浮条显示项为空（沿用旧版样式）', cfg0.prefs.summaryBarItems, []);
+eq('store 默认团队统计包含自己', cfg0.prefs.includeSelf, true);
 eq('store 默认显示合计条', cfg0.prefs.showSummaryBar, true);
 eq('store 默认排除已取消', cfg0.prefs.excludeCancelled, true);
 eq('store 默认主题', cfg0.prefs.theme, 'auto');
@@ -515,6 +573,67 @@ eq('store.addContacts 归一 + 去脏', Object.keys(book).sort(), ['u-2', 'u-me'
 eq('store.addContacts 取到姓名', book['u-me'].name, '陈默');
 const book2 = await store.removeContact('org-x', 'u-2');
 eq('store.removeContact', Object.keys(book2), ['u-me']);
+await store.setRangeSnapshot('snap-x', { savedAt: 123, rows: [{ id: '1' }] });
+eq('store 精确区间快照可持久化回读', (await store.getRangeSnapshot('snap-x')).rows[0].id, '1');
+await store.setRangeSnapshot('snap-patch-a', { savedAt: 456, rows: [{ id: 'w-patch', est: 1, act: 2 }] });
+await store.setRangeSnapshot('snap-patch-b', { savedAt: 789, rows: [{ id: 'w-patch', est: 3, act: 4 }, { id: 'keep', est: 5 }] });
+eq('store 写回后同步所有命中快照', await store.patchRangeSnapshots([{ id: 'w-patch', est: 8, act: 9 }]), { snapshots: 2, rows: 2 });
+eq('store 快照同步保留完整刷新时间', await store.getRangeSnapshot('snap-patch-a'), { savedAt: 456, rows: [{ id: 'w-patch', est: 8, act: 9 }] });
+eq('store 快照同步不影响其它行', (await store.getRangeSnapshot('snap-patch-b')).rows[1].est, 5);
+
+const originalDetectContext = detect.context;
+const originalDetectFieldMap = detect.fieldMap;
+detect.context = async () => ({ userId: 'u-me', name: '陈默', orgId: 'org-scope' });
+detect.fieldMap = async () => ({
+  estimated: { id: 'est-scope' }, actual: { id: 'act-scope' },
+  planStart: { id: 'start-scope' }, planEnd: { id: 'end-scope' }
+});
+await store.setMembers('org-scope', ['u-2']);
+await store.addContacts('org-scope', [{ id: 'u-2', name: '李维' }]);
+const scopeWithoutSelf = await rangeData.resolve({ includeSelf: false });
+eq('rangeData 排除自己时只保留已选同事',
+  [scopeWithoutSelf.includeSelf, scopeWithoutSelf.members.map((m) => m.id)], [false, ['u-2']]);
+await store.setMembers('org-scope', []);
+const scopeFallbackSelf = await rangeData.resolve({ includeSelf: false });
+eq('rangeData 没有任何成员时安全兜回自己',
+  [scopeFallbackSelf.includeSelf, scopeFallbackSelf.members.map((m) => m.id)], [true, ['u-me']]);
+detect.context = originalDetectContext;
+detect.fieldMap = originalDetectFieldMap;
+
+const dailyScope = {
+  ctx: { orgId: 'org-daily' },
+  members: [{ id: 'u-daily', name: '每日用户' }],
+  fieldMap: {
+    estimated: { id: 'est-daily' }, actual: { id: 'act-daily' },
+    planStart: { id: 'start-daily' }, planEnd: { id: 'end-daily' }
+  }
+};
+const dailyPrefs = { dateBasis: 'planEnd', excludeCancelled: true };
+const dailyRange = rangeData.currentMonthRange();
+const dailyQuery = { start: dailyRange.start, end: dailyRange.end, dateBasis: 'planEnd', excludeCancelled: true };
+const dailyKey = rangeData.cacheKey(dailyScope, dailyQuery);
+const dayOne = new Date(2026, 8, 1, 9, 0, 0).getTime();
+const dayTwo = new Date(2026, 8, 2, 9, 0, 0).getTime();
+await store.setRangeSnapshot(dailyKey, { savedAt: dayOne, rows: [] });
+let dailyCalls = 0;
+const originalListWorkitems = api.listWorkitems;
+api.listWorkitems = async () => { dailyCalls++; return { items: [], truncated: false }; };
+const sameDayResult = await rangeData.refreshThisMonthIfNeeded(dailyScope, dailyPrefs, { now: dayOne });
+eq('rangeData 同日访问复用本月快照', [sameDayResult.refreshed, dailyCalls], [false, 0]);
+const nextDayResult = await rangeData.refreshThisMonthIfNeeded(dailyScope, dailyPrefs, { now: dayTwo });
+eq('rangeData 次日访问自动全量刷新本月', [nextDayResult.refreshed, dailyCalls, nextDayResult.snapshot.savedAt], [true, 1, dayTwo]);
+const dayThree = new Date(2026, 8, 3, 9, 0, 0).getTime();
+api.listWorkitems = async () => {
+  dailyCalls++;
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  return { items: [], truncated: false };
+};
+const concurrentDaily = await Promise.all([
+  rangeData.refreshThisMonthIfNeeded(dailyScope, dailyPrefs, { now: dayThree }),
+  rangeData.refreshThisMonthIfNeeded(dailyScope, dailyPrefs, { now: dayThree })
+]);
+eq('rangeData 面板与悬浮条并发时只刷新一次本月', [dailyCalls, concurrentDaily[0].refreshed, concurrentDaily[1].refreshed], [2, true, true]);
+api.listWorkitems = originalListWorkitems;
 
 /* ------------------------------------------------------------------ *
  * 10. api.viewFilterToGroups —— 视图筛选转换
@@ -1213,6 +1332,27 @@ load('src/ui.js');
 load('src/panel.js');
 load('src/summarybar.js');
 const sb = YXWT.summarybar;
+const summarybarSource = readFileSync(path.join(ROOT, 'src/summarybar.js'), 'utf8');
+const optionsSource = readFileSync(path.join(ROOT, 'options.js'), 'utf8');
+
+ok('summarybar 展开和折叠品牌区都允许拖动',
+  summarybarSource.includes("const brandButton = button && button.classList.contains('yxwt-sb__brand');") &&
+  summarybarSource.includes('if (button && !brandButton) return;'));
+ok('summarybar 品牌按钮自己持有 pointer capture，轻点仍能折叠展开',
+  summarybarSource.includes('captureTarget = brandButton ? button : bar;'));
+ok('summarybar 展开品牌区显示可拖动光标',
+  summarybarSource.includes(".yxwt-sb__brand{appearance:none;border:0;font:inherit;cursor:grab;touch-action:none;}"));
+ok('summarybar 空配置保留旧版、自定义配置走完整概览指标',
+  summarybarSource.includes('if (selected.length)') && summarybarSource.includes('customMetrics('));
+ok('summarybar 工作日目标人数使用实际选中成员，排除自己后不会多算一人',
+  summarybarSource.includes('snapshot.memberErrors, rows, scope.members.length)'));
+ok('panel 工作日目标人数跟随包含/排除自己状态',
+  panelSource.includes('dailyTarget(), pickedCount()'));
+ok('options 改默认范围时同时过滤并保存悬浮条指标',
+  optionsSource.includes('summaryItems.normalize(before.summaryBarItems, select.value)') &&
+  optionsSource.includes('defaultRange: select.value, summaryBarItems: nextItems'));
+ok('options 支持一键恢复悬浮条默认显示',
+  optionsSource.includes("savePrefs({ summaryBarItems: [] })"));
 
 const GROUPS = [
   { identifier: '29', name: '已完成', count: 2467 },

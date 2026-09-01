@@ -1,6 +1,6 @@
 /**
  * YXWT.panel —— 主面板：顶栏 / 筛选 / 概览卡 / 日历热力图 / 分组统计 / 明细表 / 底部工具条。
- * 依赖（均在本文件之前加载）：util、store、api、detect、stats、ui。
+ * 依赖（均在本文件之前加载）：util、store、api、detect、stats、workcalendar、rangeData、ui。
  * 除 util 外一律在调用时才取 NS.xxx，避免某个模块加载失败时本文件在初始化阶段就炸掉。
  */
 (function () {
@@ -10,8 +10,6 @@
   const U = NS.util;
 
   const HOST_ID = 'yxwt-panel';
-  const CONCURRENCY = 3;          // 按成员并发上限，SPEC 7 规定
-  const FINISH_PAD_DAYS = 90;     // finishTime 口径下 planEnd 区间左右各扩的天数
   const MAX_RENDER_ROWS = 500;    // 明细表一次最多渲染多少行，防止 DOM 爆炸
   const GROUP_TOP = 15;
 
@@ -163,8 +161,9 @@
     '.yxp-sechead{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:13px;font-weight:600;}',
     '.yxp-sechead .yxp-sub{font-weight:400;color:var(--yxp-text-faint);font-size:12px;}',
     // 概览卡
-    // 卡片数量是动态的（多一张「未填预计」），写死 6 列会让第 7 张独占一行
-    '.yxp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;}',
+    // auto-fill 会保留空轨道，让常规统计和第二行工时目标卡始终等宽对齐
+    '.yxp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}',
+    '.yxp-workcards{margin-top:10px;}',
     '@media (max-width:1080px){.yxp-cards{grid-template-columns:repeat(3,minmax(0,1fr));}}',
     '@media (max-width:640px){.yxp-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}',
     '.yxp-cardbox{border:1px solid var(--yxp-border);border-radius:12px;padding:11px 12px;',
@@ -295,9 +294,12 @@
     includeSelf: true,      // 是否把自己算进统计。想「只看某个同事」就得能把自己摘掉
     memberOrgId: null,      // memberIds 当前对应的组织，换组织要重新读
     memberErrors: [],       // [{name, error}]
+    dailyError: '',         // 跨日自动刷新本月失败时保留旧快照，并在底部提示
     fieldWarn: '',          // 工时字段缺失的提示文案（缺 estimated / actual 时非空）
     pickerOpen: false,
     rows: [],
+    hasSnapshot: false,     // 当前精确区间是否已经加载并持久化
+    snapshotKey: '',
     truncated: false,
     // 编辑状态按「行 + 字段」两级存，只放真正改过的字段（详见 numCell / setEdit 附近的说明）
     edits: {},              // {rowId: {est?: 新预计工时, act?: 新实际工时}}
@@ -403,6 +405,14 @@
         const before = state.prefs || {};
         state.prefs = next;
         applyTheme();
+        if (before.defaultRange !== next.defaultRange) {
+          state.start = '';
+          state.end = '';
+          state.booted = false;
+          state.hasSnapshot = false;
+          if (state.open && !state.loading) load({ preferCache: true });
+          return;
+        }
         if (!state.open) return;
         if (before.dryRun !== next.dryRun) renderEditBar();
         if (before.dailyTargetHours !== next.dailyTargetHours && state.booted) renderCalendar();
@@ -438,19 +448,14 @@
     state.scrollLock = null;
   }
 
-  // 重开面板时数据多久算过期。统计工具最忌讳把旧数字当新的给人看：
-  // 用户在云效里改完任务再打开面板，看到没变的数字会以为改动没生效。
-  const STALE_MS = 2 * 60 * 1000;
-
   function open() {
     ensureMounted();
     if (state.open) return;
     state.open = true;
     refs.overlay.classList.remove('yxp-hidden');
     lockScroll();
-    const stale = !state.loadedAt || (Date.now() - state.loadedAt) > STALE_MS;
-    if ((!state.booted || stale) && !state.loading) {
-      load();
+    if (!state.booted && !state.loading) {
+      load({ preferCache: true });
     } else {
       // 重新打开时至少把 prefs 读新一遍，避免用的是上次打开时的写入模式
       ensureConfig().then(function () {
@@ -559,7 +564,7 @@
         state.dayFilter = null;
         state.rangeError = '';
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       });
       b.title = p.start + ' ~ ' + p.end;
       add(group, b);
@@ -595,7 +600,7 @@
       state.dayFilter = null;
       NS.store.setPrefs({ dateBasis: sel.value }).catch(function () {});
       renderFilters();
-      load();
+      load({ cacheOnly: true });
     };
 
     const memberBox = el('div', 'yxp-memberbox yxp-frow');
@@ -620,8 +625,8 @@
       refs.memberPickerScroll = 0;
     }
 
-    const refreshBtn = btn('yxp-btn', state.loading ? '加载中…' : '刷新', function () {
-      if (!state.loading) load();
+    const refreshBtn = btn('yxp-btn', state.loading ? '加载中…' : (state.hasSnapshot ? '刷新此区间' : '加载此区间'), function () {
+      if (!state.loading) load({ force: true });
     });
     refreshBtn.disabled = !!state.loading;
 
@@ -654,7 +659,7 @@
     // finishTime 口径的本地过滤提示（SPEC 7 明确要求这句文案）
     if (state.dateBasis === 'finishTime') {
       add(box, el('div', 'yxp-note',
-        '实际完成口径为本地过滤：先按「计划完成时间」拉取前后各 ' + FINISH_PAD_DAYS + ' 天的数据再按实际完成时间筛选，区间外的任务可能不全。'));
+        '实际完成口径为本地过滤：先按「计划完成时间」拉取前后各 ' + NS.rangeData.FINISH_PAD_DAYS + ' 天的数据再按实际完成时间筛选，区间外的任务可能不全。'));
     }
     restoreMemberPickerScroll();
     renderStatus();
@@ -744,7 +749,7 @@
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       }),
       btn('yxp-btn ghost', '不含我', function () {
         if (!state.memberIds.length) {
@@ -755,7 +760,7 @@
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       })
     );
     add(box, foot);
@@ -802,7 +807,7 @@
     if (!on && i >= 0) state.memberIds.splice(i, 1);
     saveMembers();
     refreshMemberSummary();
-    load();
+    load({ cacheOnly: true });
   }
 
   function onToggleSelf(on, cb) {
@@ -814,7 +819,7 @@
     state.includeSelf = !!on;
     saveMembers();
     refreshMemberSummary();
-    load();
+    load({ cacheOnly: true });
   }
 
   function onRemoveContact(id) {
@@ -848,7 +853,7 @@
     state.rangeKey = 'custom';
     state.dayFilter = null;
     renderFilters();
-    load();
+    load({ cacheOnly: true });
   }
 
   function renderStatus() {
@@ -856,17 +861,19 @@
     let txt = '';
     if (state.loading) {
       const p = state.progress;
-      if (p && p.total) txt = '加载中 ' + p.done + '/' + p.total + ' 位成员 · 已取 ' + p.loaded + ' 条';
+      if (p && p.total) txt = (p.label || '加载中') + ' ' + p.done + '/' + p.total + ' 位成员 · 已取 ' + p.loaded + ' 条';
       else txt = '正在识别身份与工时字段…';
     } else if (state.error) {
       txt = '';
+    } else if (state.booted && !state.hasSnapshot) {
+      txt = state.start + ' ~ ' + state.end + ' · 未加载';
     } else if (state.booted) {
       const bits = [state.start + ' ~ ' + state.end, '共 ' + state.rows.length + ' 条'];
       if (state.truncated) bits.push('已达分页上限，数据可能不全');
       if (state.loadedAt) {
         const d = new Date(state.loadedAt);
         const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-        bits.push('数据取自 ' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
+        bits.push('最后刷新 ' + U.toYMD(d) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
       }
       txt = bits.join(' · ');
     }
@@ -879,8 +886,9 @@
       if (state.memberErrors.length) {
         parts.push(state.memberErrors.length + ' 位成员加载失败，统计不含其数据（见上方提示）');
       }
+      if (state.dailyError) parts.push('本月自动刷新失败，当前显示上次快照：' + state.dailyError);
       refs.footStatus.textContent = parts.join(' · ');
-      refs.footStatus.className = 'yxp-status' + (state.memberErrors.length ? ' yxp-bad' : '');
+      refs.footStatus.className = 'yxp-status' + (state.memberErrors.length || state.dailyError ? ' yxp-bad' : '');
     }
   }
 
@@ -909,44 +917,18 @@
       state.end = p.end;
       state.dateBasis = state.prefs.dateBasis || 'planEnd';
     }
-    // members 按组织分桶（store.getMembers），要等 load() 里拿到 ctx.orgId 才能读，见 loadMembers()
-  }
-
-  /** 读当前组织的成员选择。换组织必须重读，否则 A 组织的 userId 会被拿去查 B 组织 */
-  async function loadMembers(orgId) {
-    const key = String(orgId || '');
-    if (state.memberOrgId === key) return;
-    state.memberOrgId = key;
-    try {
-      state.memberIds = (await NS.store.getMembers(key)) || [];
-    } catch (e) {
-      state.memberIds = [];
-    }
-    // includeSelf 是跨组织的，memberIds 是分组织的：换到一个没存过成员的组织时，
-    // 「不含我 + 没有同事」＝一个人都没有，查出来必然空表。这里兜回默认的「只看我」。
-    if (!state.includeSelf && !state.memberIds.length) state.includeSelf = true;
+    // 成员按组织分桶，在 rangeData.resolve() 识别组织后读取。
   }
 
   function saveMembers() {
     const orgId = state.ctx && state.ctx.orgId;
     if (!orgId) return;
-    NS.store.setMembers(orgId, state.memberIds.slice()).catch(function () {});
-    // includeSelf 不分组织：跨组织都是「这次想不想把自己算进去」，语义一致
-    NS.store.setPrefs({ includeSelf: !!state.includeSelf }).catch(function () {});
-  }
-
-  function memberList() {
-    const meId = state.ctx.userId;
-    const out = [];
-    if (state.includeSelf) {
-      out.push({ id: meId, name: state.ctx.name || '我', self: true });
-    }
-    state.memberIds.forEach(function (id) {
-      if (!id || id === meId) return;
-      const c = state.contacts[id];
-      out.push({ id: id, name: (c && c.name) || id });
-    });
-    return out;
+    Promise.all([
+      NS.store.setMembers(orgId, state.memberIds.slice()),
+      NS.store.setPrefs({ includeSelf: !!state.includeSelf })
+    ]).then(function () {
+      if (NS.summarybar && typeof NS.summarybar.refresh === 'function') NS.summarybar.refresh();
+    }).catch(function () {});
   }
 
   /** 选中的总人数（含自己）。为 0 时不该发查询——一个人都没选，拉回来必然是空表 */
@@ -958,12 +940,14 @@
     return (state.ctx && state.ctx.name) || '我';
   }
 
-  async function load() {
+  async function load(options) {
+    const mode = options || {};
     ensureMounted();
     const seq = ++state.reqSeq;
     state.loading = true;
     state.error = null;
     state.memberErrors = [];
+    state.dailyError = '';
     state.fieldWarn = '';
     state.progress = null;
     state.truncated = false;
@@ -972,144 +956,98 @@
 
     try {
       await ensureConfig();
-      const ctx = await NS.detect.context();
+      const scope = await NS.rangeData.resolve(state.prefs);
       if (seq !== state.reqSeq) return;
-      state.ctx = ctx;
-      if (refs.org) refs.org.textContent = (ctx && (ctx.orgName || ctx.orgId)) || '未知组织';
-      await loadMembers(ctx && ctx.orgId);
-      if (seq !== state.reqSeq) return;
-
-      try {
-        state.contacts = (await NS.store.getContacts(ctx.orgId)) || {};
-      } catch (e) {
-        state.contacts = {};
-      }
+      state.ctx = scope.ctx;
+      state.includeSelf = scope.includeSelf !== false;
+      state.memberIds = scope.memberIds.slice();
+      state.memberOrgId = String((scope.ctx && scope.ctx.orgId) || '');
+      state.contacts = scope.contacts || {};
+      if (refs.org) refs.org.textContent = (state.ctx && (state.ctx.orgName || state.ctx.orgId)) || '未知组织';
       const sig = contactsSig(state.contacts);
       if (sig !== state.contactsSig) {
         state.contactsSig = sig;
         invalidateMemberPicker();
       }
+      state.fieldMap = scope.fieldMap;
+      state.fieldWarn = scope.fieldWarn;
 
-      const fm = await NS.detect.fieldMap();
-      if (seq !== state.reqSeq) return;
-      state.fieldMap = fm;
-      if (!fm) {
-        throw fieldError('没探测到工时字段：云效里至少要有一个工作项才能读到字段定义，也可以到设置页手动指定字段 identifier。');
-      }
-
-      // 工时字段缺一个不该静默按 0 统计：概览卡「预计 0h」、偏差全是正数、
-      // 热力图整片灰 + 每个工作日都标「不足」，全屏没一个字解释，用户只会以为插件算错了
-      const missing = [];
-      if (!fm.estimated || !fm.estimated.id) missing.push('预计工时');
-      if (!fm.actual || !fm.actual.id) missing.push('实际工时');
-      state.fieldWarn = missing.length
-        ? '未识别到「' + missing.join('」「') + '」字段，相关数字按 0 计算。可到设置页手动指定字段 identifier。'
-        : '';
-
-      const basisKey = state.dateBasis === 'planStart' ? 'planStart' : 'planEnd';
-      const dateField = fm[basisKey];
-      if (!dateField || !dateField.id) {
-        throw fieldError('没识别到「' + (basisKey === 'planStart' ? '计划开始时间' : '计划完成时间') + '」字段，请到设置页手动指定后重试。');
-      }
-
-      // finishTime 口径：云效没有可筛的 finishTime 字段，只能用 planEnd 拉宽区间再本地过滤
-      let qStart = state.start;
-      let qEnd = state.end;
-      if (state.dateBasis === 'finishTime') {
-        qStart = U.toYMD(U.addDays(U.parseYMD(state.start), -FINISH_PAD_DAYS)) || state.start;
-        qEnd = U.toYMD(U.addDays(U.parseYMD(state.end), FINISH_PAD_DAYS)) || state.end;
-      }
-
-      const members = memberList();
-      const loadedBy = {};
-      state.progress = { done: 0, total: members.length, loaded: 0 };
-      renderStatus();
-
-      const results = await U.pmap(members, function (m) {
-        return NS.api.listWorkitems({
-          spaceType: 'User',
-          spaceIdentifier: m.id,
-          scope: 'personal',
-          category: '',
-          conditionGroups: [[
-            NS.api.cond.user('assignedTo', [m.id]),
-            NS.api.cond.dateBetween(dateField.id, qStart, qEnd)
-          ]],
-          orderBy: { fieldIdentifier: dateField.id, order: 'desc', className: 'date', format: 'input' },
-          pageSize: 200,
-          maxPages: 20,
-          onProgress: function (loaded) {
-            if (seq !== state.reqSeq) return;
-            loadedBy[m.id] = loaded || 0;
-            let sum = 0;
-            Object.keys(loadedBy).forEach(function (k) { sum += loadedBy[k]; });
-            state.progress.loaded = sum;
-            renderStatus();
-          }
-        }).then(function (res) {
-          if (seq === state.reqSeq && state.progress) {
-            state.progress.done++;
-            renderStatus();
-          }
-          return res;
-        });
-      }, CONCURRENCY);
-
-      if (seq !== state.reqSeq) return;
-
-      // 单个成员失败不影响整体：失败的人记进 memberErrors，其余照常统计
-      const items = [];
-      const seen = {};
-      results.forEach(function (r, i) {
-        if (!r || r.__error) {
-          // 原始错误可能是 YXWT_NOT_LOGGED_IN 这种常量，先过一遍中文化再进 UI
-          state.memberErrors.push({
-            name: members[i].name,
-            error: r && r.__error ? errMsg({ message: r.__error }) : '未知错误'
-          });
-          return;
-        }
-        if (r.truncated) state.truncated = true;
-        (r.items || []).forEach(function (it) {
-          const id = it && it.identifier;
-          if (!id || seen[id]) return;
-          seen[id] = 1;
-          items.push(it);
-        });
-      });
-
-      if (state.memberErrors.length && state.memberErrors.length === members.length) {
-        throw new Error(state.memberErrors[0].error);
-      }
-
-      let rows = NS.stats.normalize(items, fm, {
+      const query = {
+        start: state.start,
+        end: state.end,
         dateBasis: state.dateBasis,
         excludeCancelled: state.prefs.excludeCancelled !== false
-      }) || [];
-
-      if (state.dateBasis === 'finishTime') {
-        rows = rows.filter(function (r) {
-          return r.date && r.date >= state.start && r.date <= state.end;
+      };
+      const monthRange = NS.rangeData.currentMonthRange();
+      const isCurrentMonth = query.start === monthRange.start && query.end === monthRange.end;
+      let daily = null;
+      // 手动强刷本月本身已经是全量刷新，不再额外发一次“每日自动刷新”。
+      if (!(mode.force && isCurrentMonth)) {
+        daily = await NS.rangeData.refreshThisMonthIfNeeded(scope, state.prefs, {
+          onProgress: function (p) {
+            if (seq !== state.reqSeq) return;
+            state.progress = Object.assign({ label: '自动刷新本月' }, p);
+            renderStatus();
+          }
         });
+        if (seq !== state.reqSeq) return;
+        if (daily.error) state.dailyError = errMsg(daily.error);
       }
+      let snapshot = null;
+      if (!mode.force && isCurrentMonth && daily && daily.snapshot) snapshot = daily.snapshot;
+      if (!snapshot && !mode.force) snapshot = await NS.rangeData.readSnapshot(scope, query);
+      if (!snapshot && isCurrentMonth && daily && daily.error) throw daily.error;
+      if (seq !== state.reqSeq) return;
+      if (!snapshot && mode.cacheOnly) {
+        state.rows = [];
+        state.hasSnapshot = false;
+        state.snapshotKey = NS.rangeData.cacheKey(scope, query);
+        state.loadedAt = null;
+        state.booted = true;
+        state.loading = false;
+        state.progress = null;
+        renderFilters();
+        renderAll();
+        return;
+      }
+      if (!snapshot) {
+        state.rows = [];
+        state.hasSnapshot = false;
+        snapshot = await NS.rangeData.fetchSnapshot(scope, Object.assign({}, query, {
+          onProgress: function (p) {
+            if (seq !== state.reqSeq) return;
+            state.progress = p;
+            renderStatus();
+          }
+        }));
+      }
+      if (seq !== state.reqSeq) return;
 
-      state.rows = rows;
+      state.rows = snapshot.rows || [];
+      state.hasSnapshot = true;
+      state.snapshotKey = snapshot.cacheKey || NS.rangeData.cacheKey(scope, query);
+      state.memberErrors = snapshot.memberErrors || [];
+      state.truncated = !!snapshot.truncated;
       state.edits = {};
       state.failed = {};
       state.failedDetail = {};
       state.booted = true;
       state.loading = false;
-      state.loadedAt = Date.now();
+      state.loadedAt = Number(snapshot.savedAt) || Date.now();
+      state.progress = null;
       // 重新取数后仍停在旧的单日下钻上，很容易出现「明细 0 / N 条」而用户不知道为什么
-      if (state.dayFilter && rows.every(function (r) { return r.date !== state.dayFilter; })) {
+      if (state.dayFilter && state.rows.every(function (r) { return r.date !== state.dayFilter; })) {
         state.dayFilter = null;
       }
       // 「只看未填预计」同理：新区间可能一条都不缺，留着筛选就是一张空表
-      if (state.missingOnly && !countMissing(rows)) state.missingOnly = false;
+      if (state.missingOnly && !countMissing(state.rows)) state.missingOnly = false;
       // 置顶开关跟着设置页的总开关走（面板里可临时取消勾选，重新取数时回到设置的值）
       state.missingTop = !(state.prefs && state.prefs.warnMissingEst === false);
       renderFilters();
       renderAll();
+      if (mode.force && NS.summarybar && typeof NS.summarybar.refresh === 'function') {
+        NS.summarybar.refresh();
+      }
     } catch (e) {
       if (seq !== state.reqSeq) return;
       state.loading = false;
@@ -1121,12 +1059,6 @@
       renderFilters();
       renderErrorBody();
     }
-  }
-
-  function fieldError(msg) {
-    const e = new Error(msg);
-    e.__yxwtField = true;
-    return e;
   }
 
   /* ---------------------------------------------------------------- 主体状态：加载中 / 出错 / 空 */
@@ -1147,7 +1079,7 @@
     if (state.booted && state.rows.length) return;
     const box = showStateBox();
     const cards = el('div', 'yxp-cards');
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const s = el('div', 'yxp-skel');
       s.style.height = '68px';
       add(cards, s);
@@ -1172,7 +1104,7 @@
     add(box, el('div', 'msg', state.error.message));
 
     const acts = el('div', 'acts');
-    add(acts, btn('yxp-btn primary', '重试', function () { load(); }));
+    add(acts, btn('yxp-btn primary', '重试', function () { load({ force: true }); }));
     if (kind === 'login') {
       const a = el('a', 'yxp-btn', '去登录云效');
       a.href = 'https://devops.aliyun.com/projex/workitem';
@@ -1194,8 +1126,20 @@
       '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
       '也可能是这些任务没填工时字段。'));
     const acts = el('div', 'acts');
-    add(acts, btn('yxp-btn primary', '重新加载', function () { load(); }));
+    add(acts, btn('yxp-btn primary', '刷新此区间', function () { load({ force: true }); }));
     add(acts, btn('yxp-btn', '打开设置', openOptions));
+    add(box, acts);
+  }
+
+  function renderNotLoadedBody() {
+    const box = showStateBox();
+    box.className = 'yxp-state';
+    box.style.textAlign = 'center';
+    add(box, el('div', 'big', '这个时间区间还没有加载数据'));
+    add(box, el('div', 'msg', state.start + ' ~ ' + state.end +
+      ' 尚无本地快照。只会加载当前所选区间，不会一次性拉取其它月份。'));
+    const acts = el('div', 'acts');
+    add(acts, btn('yxp-btn primary', '加载所选时间', function () { load({ force: true }); }));
     add(box, acts);
   }
 
@@ -1209,6 +1153,7 @@
   function renderAll() {
     if (state.error) { renderErrorBody(); return; }
     if (state.loading && !state.rows.length) { renderLoadingBody(); return; }
+    if (!state.hasSnapshot) { renderNotLoadedBody(); renderStatus(); return; }
     if (!state.rows.length) { renderEmptyBody(); return; }
     showSections();
     renderOverview();
@@ -1324,6 +1269,43 @@
     }
 
     add(sec, cards);
+
+    // 工时目标统一从新的一行开始；所有范围都有总工时和总偏差，本周/本月再追加截止今日两项。
+    const workCards = el('div', 'yxp-cards yxp-workcards');
+
+    const calStart = state.dayFilter || state.start;
+    const calEnd = state.dayFilter || state.end;
+    const work = NS.workcalendar.summarize(calStart, calEnd, dailyTarget(), pickedCount());
+    let workSub = work.workdays + ' 个工作日 × ' + hours(work.dailyHours) + 'h';
+    if (work.memberCount > 1) workSub += ' × ' + work.memberCount + ' 人';
+    if (work.unsupportedYears.length) {
+      workSub = '仅按周一至周五 · 缺少 ' + work.unsupportedYears.join('、') + ' 年安排，请更新脚本';
+    }
+    add(workCards, card('工作日总工时', hours(work.hours), 'h', workSub,
+      work.unsupportedYears.length ? 'yxp-warn' : ''));
+
+    const workDiff = (Number(s.act) || 0) - work.hours;
+    add(workCards, card('工时偏差', (workDiff > 0 ? '+' : '') + hours(workDiff), 'h',
+      '实际 − 工作日总工时', workDiff > 0 ? 'yxp-bad' : (workDiff < 0 ? 'yxp-good' : '')));
+
+    if (state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek') {
+      const today = U.toYMD(new Date());
+      const throughEnd = today < state.end ? today : state.end;
+      const through = NS.workcalendar.summarize(state.start, throughEnd, dailyTarget(), pickedCount());
+      let throughSub = through.workdays + ' 个工作日 × ' + hours(through.dailyHours) + 'h';
+      if (through.memberCount > 1) throughSub += ' × ' + through.memberCount + ' 人';
+      if (through.unsupportedYears.length) {
+        throughSub = '仅按周一至周五 · 缺少 ' + through.unsupportedYears.join('、') + ' 年安排，请更新脚本';
+      }
+      add(workCards, card('截止今日工时', hours(through.hours), 'h', throughSub,
+        through.unsupportedYears.length ? 'yxp-warn' : ''));
+
+      const throughDiff = (Number(s.act) || 0) - through.hours;
+      add(workCards, card('截止今日工时偏差', (throughDiff > 0 ? '+' : '') + hours(throughDiff), 'h',
+        '实际 − 截止今日工时', throughDiff > 0 ? 'yxp-bad' : (throughDiff < 0 ? 'yxp-good' : '')));
+    }
+
+    add(sec, workCards);
   }
 
   /**
@@ -1363,7 +1345,10 @@
   function renderCalendar() {
     const sec = clear(refs.secCalendar);
     const target = dailyTarget();
-    const days = NS.stats.byDay(state.rows, state.start, state.end, { dailyTargetHours: target }) || [];
+    const days = NS.stats.byDay(state.rows, state.start, state.end, {
+      dailyTargetHours: target,
+      isWorkday: function (ymd) { return NS.workcalendar.classify(ymd).workday; }
+    }) || [];
 
     const head = el('h3', 'yxp-sechead', '日历热力图');
     add(head, el('span', 'yxp-sub', '按「' + basisLabel(state.dateBasis) +
@@ -1394,8 +1379,8 @@
     days.forEach(function (d) {
       const lv = heatLevel(d.est, max);
       const cls = ['yxp-day', 'lv' + lv];
-      if (d.isWeekend) cls.push('weekend');
-      if (!d.isWeekend && d.target > 0 && d.est < d.target) cls.push('short');
+      if (!d.isWorkday) cls.push('weekend');
+      if (d.isWorkday && d.target > 0 && d.est < d.target) cls.push('short');
       if (state.dayFilter === d.ymd) cls.push('on');
       const cell = btn(cls.join(' '), '', function () { onPickDay(d.ymd); });
       const dd = U.parseYMD(d.ymd);
@@ -2158,6 +2143,7 @@
     let skipCount = 0;
     let failCount = 0;
     let unverifiedCount = 0;   // 写进去了但云效汇总还没刷新出来的条数
+    const cachePatches = {};
     for (let i = 0; i < list.length; i++) {
       const c = list[i];
       let res = null;
@@ -2179,6 +2165,8 @@
         if (!dryRun && !res.dryRun) {
           c.row[c.which] = c.to;
           setEdit(c.row, c.which, null);
+          const patch = cachePatches[c.row.id] || (cachePatches[c.row.id] = { id: c.row.id });
+          patch[c.which] = c.to;
         }
       } else {
         failCount++;
@@ -2189,6 +2177,18 @@
       }
       state.submitProgress.done = i + 1;
       renderEditBar();
+    }
+
+    // 写回成功后同步所有包含这些工作项的本地快照。否则刷新页面会重新读到旧快照，
+    // 用户还得再手动刷新一次才能看见刚刚由插件写入的值。
+    const patchList = Object.keys(cachePatches).map(function (id) { return cachePatches[id]; });
+    if (patchList.length) {
+      try {
+        await NS.store.patchRangeSnapshots(patchList);
+        if (NS.summarybar && typeof NS.summarybar.refresh === 'function') NS.summarybar.refresh();
+      } catch (e) {
+        try { console.warn('[云效工时统计] 本地快照同步失败', e); } catch (ignored) {}
+      }
     }
 
     state.submitting = false;

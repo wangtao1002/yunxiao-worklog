@@ -1,7 +1,7 @@
 # 隐私政策 / Privacy Policy
 
 **插件名称 / Extension:** 云效工时统计（Yunxiao Work-Hours Stats）
-**版本 / Version:** 0.1.0
+**版本 / Version:** 0.2.9
 **生效日期 / Effective date:** 2026-08-21
 
 ---
@@ -56,6 +56,7 @@
 | 通讯录缓存 | 你主动从当前视图导入的同事的 userId、显示名、头像 URL，用于团队统计的成员选择（头像 URL 只作为元数据保存，界面上一律显示首字母占位块，不会去加载远程图片） |
 | 身份缓存 | 你自己的 userId、云效显示名、头像 URL，以及所属组织的 id 与名称，按组织分桶保存。用于面板标题、「只看我」筛选，以及接口抖动时的降级回退 |
 | 成员选择 | 你在团队统计里勾选的同事 userId，按组织分桶保存 |
+| 区间统计快照 | 最近 12 个已加载日期区间的标准化工作项统计数据，用于离线回显和手动按区间刷新 |
 
 **导出的 CSV / Markdown 由你自己触发下载或复制到剪贴板，插件不保留副本。**
 
@@ -168,6 +169,7 @@ Stored items are limited to:
 | Contacts cache | userId, display name and avatar URL of colleagues you explicitly imported from the current view, used for member selection in team statistics (the avatar URL is kept as metadata only — the UI always renders a local initial-letter placeholder and never loads the remote image) |
 | Identity cache | Your own userId, Yunxiao display name and avatar URL, plus the id and name of your organisation, bucketed per organisation. Used for the panel header, the "only me" filter, and as a fallback when the API is temporarily unreachable |
 | Member selection | The userIds of colleagues you ticked for team statistics, bucketed per organisation |
+| Range snapshots | Normalized statistics for the 12 most recently loaded date ranges, used for local replay and manual range refresh |
 
 **Exported CSV / Markdown is downloaded or copied to your clipboard by your own action; no copy is retained.**
 

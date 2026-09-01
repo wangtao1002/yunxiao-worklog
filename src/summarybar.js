@@ -1,6 +1,7 @@
 /**
  * YXWT.summarybar —— 云效工作项列表页底部常驻统计条。
- * 依赖（均在本文件之前加载）：util / store / api / detect / stats / ui / panel。
+ * 依赖（均在本文件之前加载）：util / summaryItems / store / api / detect / stats /
+ * workcalendar / rangeData / ui / panel。
  * 原则：任何一步失败都静默降级，只把「统计失败，点击重试」写到条上，绝不弹窗打断云效。
  */
 (function () {
@@ -25,7 +26,11 @@
 
   const FALLBACK_PREFS = {
     showSummaryBar: true,
+    dailyTargetHours: 8,
     dateBasis: 'planEnd',
+    defaultRange: 'thisWeek',
+    summaryBarItems: [],
+    includeSelf: true,
     excludeCancelled: true,
     warnMissingEst: true,
     theme: 'auto'
@@ -37,7 +42,7 @@
     '.yxwt-sb{',
     '  position:fixed;z-index:2147483000;',
     '  box-sizing:border-box;height:32px;padding:0 6px 0 10px;',
-    '  display:inline-flex;align-items:center;gap:10px;max-width:min(72vw,720px);',
+    '  display:inline-flex;align-items:center;gap:10px;width:max-content;max-width:none;',
     '  border-radius:16px;cursor:grab;user-select:none;touch-action:none;',
     '  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;',
     '  font-size:12px;line-height:1;letter-spacing:.01em;',
@@ -53,7 +58,8 @@
     '.yxwt-sb.is-mini{padding:0 4px 0 8px;gap:6px;}',
     '.yxwt-sb.is-mini .yxwt-sb__msg,.yxwt-sb.is-mini .yxwt-sb__btn{display:none;}',
     '.yxwt-sb.is-mini .yxwt-sb__name{display:none;}',
-    '.yxwt-sb__brand{appearance:none;border:0;font:inherit;cursor:pointer;}',
+    '.yxwt-sb__brand{appearance:none;border:0;font:inherit;cursor:grab;touch-action:none;}',
+    '.yxwt-sb.is-dragging .yxwt-sb__brand{cursor:grabbing;}',
     '.yxwt-sb__brand{',
     '  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;',
     '  padding:3px 8px;border-radius:999px;font-size:12px;font-weight:600;',
@@ -61,22 +67,21 @@
     '  background:var(--yxwt-accent-soft,rgba(47,107,255,.10));',
     '}',
     '.yxwt-sb__dot{width:6px;height:6px;border-radius:50%;background:currentColor;}',
-    // text-overflow 对 flex 子项无效，所以这里不写 ellipsis：改成让每个指标自己可收缩
-    // （flex:0 1 auto + min-width:0），窄屏时收缩而不是被 overflow:hidden 齐刷刷切掉
+    // 指标值必须完整可读：消息区和整条浮标都按内容宽度展开，不收缩、不滚动、不显示省略号。
     '.yxwt-sb__msg{',
-    '  flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:14px;',
-    '  overflow:hidden;white-space:nowrap;',
+    '  flex:0 0 auto;min-width:max-content;display:flex;align-items:center;gap:14px;',
+    '  overflow:visible;white-space:nowrap;',
     '}',
     '.yxwt-sb__item{display:inline-flex;align-items:baseline;gap:5px;',
-    '  flex:0 1 auto;min-width:0;overflow:hidden;}',
+    '  flex:0 0 auto;min-width:max-content;overflow:visible;}',
     '.yxwt-sb__k{color:var(--yxwt-muted,#6b7280);font-size:12px;white-space:nowrap;}',
     '.yxwt-sb__v{font-weight:600;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;',
-    '  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+    '  white-space:nowrap;}',
     '.yxwt-sb__v.is-good{color:var(--yxwt-good,#12855b);}',
     '.yxwt-sb__v.is-warn{color:var(--yxwt-warn,#c2670a);}',
     '.yxwt-sb__v.is-bad{color:var(--yxwt-bad,#d93a2b);}',
     '.yxwt-sb__v.is-dim{color:var(--yxwt-dim,#8a94a6);font-weight:400;}',
-    '.yxwt-sb__text{color:var(--yxwt-muted,#6b7280);overflow:hidden;text-overflow:ellipsis;}',
+    '.yxwt-sb__text{color:var(--yxwt-muted,#6b7280);white-space:nowrap;}',
     '.yxwt-sb__text.is-error{color:var(--yxwt-danger,#c62f2f);}',
     '.yxwt-sb__btn{',
     '  flex:0 0 auto;appearance:none;border:0;cursor:pointer;',
@@ -168,6 +173,7 @@
     lastKey: '',
     groupedView: false,
     forceKey: Object.create(null),   // 用户对某个列表点过「仍要统计」
+    forceRefresh: false,
     errored: false
   };
 
@@ -565,19 +571,24 @@
   function makeDraggable(bar) {
     let dragging = false;
     let moved = false;
+    let captureTarget = null;
     let sx = 0, sy = 0, ox = 0, oy = 0;
 
     bar.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return;
-      // 按钮上按下不拖，否则点「详细统计」会变成拖拽
+      // 普通按钮上按下不拖；品牌蓝色区域在展开/折叠两种状态下都同时支持点击和拖动。
       const t = e.target;
-      if (t && t.closest && t.closest('button')) return;
+      const button = t && t.closest ? t.closest('button') : null;
+      const brandButton = button && button.classList.contains('yxwt-sb__brand');
+      if (button && !brandButton) return;
       dragging = true;
       moved = false;
       sx = e.clientX; sy = e.clientY;
       const r = bar.getBoundingClientRect();
       ox = r.left; oy = r.top;
-      try { bar.setPointerCapture(e.pointerId); } catch (err) { /* 老浏览器忽略 */ }
+      // 品牌按钮要自己持有 pointer capture，否则无移动点击会被重定向到外层 bar。
+      captureTarget = brandButton ? button : bar;
+      try { captureTarget.setPointerCapture(e.pointerId); } catch (err) { /* 老浏览器忽略 */ }
     });
 
     bar.addEventListener('pointermove', function (e) {
@@ -596,10 +607,14 @@
       if (!dragging) return;
       dragging = false;
       bar.classList.remove('is-dragging');
-      try { bar.releasePointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      try { if (captureTarget) captureTarget.releasePointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      captureTarget = null;
       if (!moved) return;
       const r = bar.getBoundingClientRect();
       savePos({ x: r.left, y: r.top });
+      // pointerup 后浏览器还会派发 click；标记到当前任务结束，避免拖完品牌区又立即折叠/展开。
+      bar.setAttribute('data-yxwt-dragged', '1');
+      setTimeout(function () { bar.removeAttribute('data-yxwt-dragged'); }, 0);
     };
     bar.addEventListener('pointerup', end);
     bar.addEventListener('pointercancel', end);
@@ -634,11 +649,17 @@
     const brand = el('button', 'yxwt-sb__brand');
     if (brand.setAttribute) {
       brand.setAttribute('type', 'button');
-      brand.title = '点一下折叠/展开（折叠后只剩一个小标记，完全不挡页面）';
+      brand.title = '点一下折叠/展开，按住可拖动（折叠后只剩一个小标记）';
     }
     brand.appendChild(el('span', 'yxwt-sb__dot'));
     brand.appendChild(el('span', 'yxwt-sb__name', '工时统计'));
-    brand.addEventListener('click', function () { toggleMini(); });
+    brand.addEventListener('click', function (e) {
+      if (bar.getAttribute('data-yxwt-dragged') === '1') {
+        e.preventDefault();
+        return;
+      }
+      toggleMini();
+    });
     const msg = el('div', 'yxwt-sb__msg');
     const btn = el('button', 'yxwt-sb__btn', '详细统计');
     if (btn.setAttribute) btn.setAttribute('type', 'button');
@@ -767,7 +788,7 @@
       // 重试做成真 <button>：原来是给 div 挂 click，键盘和读屏用户既感知不到也点不了
       const b = el('button', 'yxwt-sb__retry', text);
       if (b.setAttribute) b.setAttribute('type', 'button');
-      b.addEventListener('click', refreshNow);
+      b.addEventListener('click', function () { refreshNow(true); });
       msg.appendChild(b);
     } else {
       msg.appendChild(el('span', 'yxwt-sb__text', text));
@@ -786,7 +807,7 @@
       wrap.appendChild(el('span', 'yxwt-sb__v' + (it.tone ? ' is-' + it.tone : ''), it.v));
       msg.appendChild(wrap);
     }
-    // 窄屏会收缩甚至截断，把完整数值一并写进 title，悬浮至少读得到
+    // title 继续保留完整摘要，便于悬浮查看统计范围和快照时间。
     const full = items.map(function (it) {
       return (it.k ? it.k + ' ' : '') + it.v;
     }).join(' · ');
@@ -839,43 +860,92 @@
     }
   }
 
-  function renderResult(sum, hasFieldMap, truncated, scopeText, skipped, missing) {
-    const items = [{
-      k: '共',
-      v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条'
-    }];
-    // 云效列表显示的是原始条数，这里排除了已取消。浮标要窄，所以只在条数后面
-    // 加个小角标，完整说明放 tooltip 里（不说明会让人以为算错了）。
-    if (skipped > 0) {
-      items[0].v += '*';
-    }
-    // 分组视图下，页面显示的条数和浮标不一致是必然的，加个显式标记别让人猜
-    if (state.groupedView) {
-      items.push({ k: '', v: '全视图', tone: 'dim' });
-    }
-    if (hasFieldMap) {
-      const diff = Number(sum.diff) || 0;
-      items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
-      items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
-      items.push({
-        k: '偏差',
+  function customMetrics(sum, truncated, range, missing, rows, memberCount) {
+    const prefs = state.prefs || FALLBACK_PREFS;
+    const diff = Number(sum.diff) || 0;
+    const overdue = NS.stats.overdue(rows, Date.now()) || { rate: 0 };
+    const work = NS.workcalendar.summarize(range.start, range.end,
+      prefs.dailyTargetHours, memberCount);
+    const workDiff = (Number(sum.act) || 0) - work.hours;
+    const values = {
+      range: { v: range.label },
+      count: { v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条' },
+      estimated: { v: fmtHours(sum.est) + ' h' },
+      actual: { v: fmtHours(sum.act) + ' h' },
+      diff: {
         v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
         tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
-      });
-      // 漏填的预计工时会把上面的「预计」压低，不点出来根本发现不了
-      if (missing > 0) items.push({ k: '未填预计', v: String(missing) + ' 条', tone: 'bad' });
+      },
+      avgPerDay: { v: fmtHours(sum.avgPerDay) + ' h' },
+      overdueRate: { v: fmtHours(overdue.rate) + ' %', tone: overdue.rate > 20 ? 'bad' : '' },
+      missingEst: { v: String(Number(missing) || 0) + ' 条', tone: missing > 0 ? 'bad' : 'good' },
+      workdayTotal: { v: fmtHours(work.hours) + ' h', tone: work.unsupportedYears.length ? 'warn' : '' },
+      workdayDiff: {
+        v: (workDiff > 0 ? '+' : '') + fmtHours(workDiff) + ' h',
+        tone: workDiff > 0 ? 'bad' : (workDiff < 0 ? 'good' : '')
+      }
+    };
+
+    if (range.key === 'thisWeek' || range.key === 'thisMonth') {
+      const today = util().toYMD(new Date());
+      const throughEnd = today < range.end ? today : range.end;
+      const through = NS.workcalendar.summarize(range.start, throughEnd,
+        prefs.dailyTargetHours, memberCount);
+      const throughDiff = (Number(sum.act) || 0) - through.hours;
+      values.throughToday = {
+        v: fmtHours(through.hours) + ' h', tone: through.unsupportedYears.length ? 'warn' : ''
+      };
+      values.throughTodayDiff = {
+        v: (throughDiff > 0 ? '+' : '') + fmtHours(throughDiff) + ' h',
+        tone: throughDiff > 0 ? 'bad' : (throughDiff < 0 ? 'good' : '')
+      };
+    }
+
+    const config = NS.summaryItems;
+    const selected = config.normalize(prefs.summaryBarItems, range.key);
+    const byKey = Object.create(null);
+    config.available(range.key).forEach(function (item) { byKey[item.key] = item; });
+    return selected.map(function (key) {
+      const def = byKey[key];
+      const value = values[key];
+      return def && value ? { k: def.shortLabel, v: value.v, tone: value.tone || '' } : null;
+    }).filter(Boolean);
+  }
+
+  function renderResult(sum, hasFieldMap, truncated, range, savedAt, missing, memberErrors, rows, memberCount) {
+    const prefs = state.prefs || FALLBACK_PREFS;
+    const selected = NS.summaryItems.normalize(prefs.summaryBarItems, range.key);
+    let items = null;
+    if (selected.length) {
+      items = customMetrics(sum, truncated, range, missing, rows, memberCount);
     } else {
-      items.push({ k: '', v: '未识别到工时字段' });
+      // 空配置严格保持旧版显示，避免升级后已有用户的悬浮条突然变化。
+      items = [{ k: '范围', v: range.label }, {
+        k: '共',
+        v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条'
+      }];
+      if (hasFieldMap) {
+        const diff = Number(sum.diff) || 0;
+        items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
+        items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
+        items.push({
+          k: '偏差',
+          v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
+          tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
+        });
+        // 漏填的预计工时会把上面的「预计」压低，不点出来根本发现不了
+        if (missing > 0) items.push({ k: '未填预计', v: String(missing) + ' 条', tone: 'bad' });
+      } else {
+        items.push({ k: '', v: '未识别到工时字段' });
+      }
     }
-    let title = '统计范围：' + (scopeText || '当前列表');
-    if (state.groupedView) {
-      title += '\n⚠ 这个视图开了分组：浮标统计的是**整个视图**，不随你点的分组标签（如「待处理 25」）变化。';
-    }
-    if (skipped > 0) title += '\n* 已排除 ' + skipped + ' 条「已取消」的工作项（可在设置页关掉）';
+    let title = '统计范围：' + range.label + '（' + range.start + ' ~ ' + range.end + '）';
+    if (savedAt) title += '\n本地快照：' + new Date(savedAt).toLocaleString();
     if (missing > 0) {
       title += '\n⚠ ' + missing + ' 条没填「预计工时」，上面的预计合计是偏低的；点「详细统计」可以标红置顶看是哪些。';
     }
-    if (truncated) title += '（超出 ' + PAGE_SIZE * MAX_PAGES + ' 条，仅统计前 ' + PAGE_SIZE * MAX_PAGES + ' 条）';
+    if (memberErrors && memberErrors.length) title += '\n⚠ ' + memberErrors.length + ' 位成员加载失败，本次统计不含其数据。';
+    if (truncated) title += '\n数据达到分页上限，统计可能不完整。';
     if (!hasFieldMap) title += '；请到设置页手动指定预计/实际工时字段';
     setMetrics(items, title);
   }
@@ -910,111 +980,59 @@
     const seq = ++state.seq;
     abortInFlight();
 
-    let controller = null;
-    if (typeof AbortController === 'function') {
-      controller = new AbortController();
-      state.abort = controller;
-    }
-
     renderLoading(0, 0);
 
     try {
-      let fieldMap = null;
-      try {
-        fieldMap = await NS.detect.fieldMap();
-      } catch (e) {
-        fieldMap = null;   // 字段探测失败不影响「共 N 条」
-      }
-      if (seq !== state.seq) return;
-
-      const query = await buildQuery(ctx);
-      if (seq !== state.seq) return;
-
-      // 视图开了分组时，先把用户点中的那个标签解出来。
-      // 这一步失败（认不出来/接口挂了）不能让整条统计失败，退回「全视图」并标注。
-      let picked = null;
-      if (query.groupField) {
-        try {
-          const groups = await NS.api.listGroups({
-            spaceType: query.spaceType,
-            spaceIdentifier: query.spaceIdentifier,
-            scope: query.scope,
-            conditionGroups: query.conditionGroups,
-            groupField: query.groupField,
-            signal: controller ? controller.signal : undefined
-          });
-          if (seq !== state.seq) return;
-          picked = detectActiveGroup(groups);
-        } catch (e) {
-          if (isAbort(e)) return;
-          warn(e);
-        }
-      }
-      const groupCondition = groupConditionOf(query.groupField, picked);
-      // 只有「开了分组但没认出选中项」才需要提示统计范围是全视图
-      state.groupedView = !!query.groupField && !groupCondition;
-      if (picked) query.scopeText = (query.scopeText || '当前列表') + ' · ' + picked.name;
-
-      // 先只拉 1 条探总量：像「全部任务 10228 条」这种列表，
-      // 无脑翻 10 页拉 2000 条既慢又给云效添负担，而且合计出来也没什么意义。
-      // 超过阈值就停下来问一句，让人自己决定要不要统计。
-      const probe = await NS.api.listWorkitems({
-        spaceType: query.spaceType,
-        spaceIdentifier: query.spaceIdentifier,
-        scope: query.scope,
-        category: query.category,
-        conditionGroups: query.conditionGroups,
-        groupCondition: groupCondition,
-        pageSize: 1,
-        maxPages: 1,
-        signal: controller ? controller.signal : undefined
-      });
-      if (seq !== state.seq) return;
-
-      const total = Number(probe.total) || 0;
-      const routeId = routeKey(ctx) + '|' + (picked ? picked.identifier : '');
-      if (total > BIG_LIST && !state.forceKey[routeId]) {
-        renderTooBig(total, routeId, query.scopeText);
-        return;
-      }
-
-      const res = await NS.api.listWorkitems({
-        spaceType: query.spaceType,
-        spaceIdentifier: query.spaceIdentifier,
-        scope: query.scope,
-        category: query.category,
-        conditionGroups: query.conditionGroups,
-        groupCondition: groupCondition,
-        pageSize: PAGE_SIZE,
-        maxPages: MAX_PAGES,
-        signal: controller ? controller.signal : undefined,
-        onProgress: function (loaded, tot) {
-          if (seq === state.seq) renderLoading(loaded, tot || total);
-        }
-      });
-      if (seq !== state.seq) return;
-
       const prefs = state.prefs || FALLBACK_PREFS;
-      const rows = NS.stats.normalize(res.items, fieldMap, {
+      const range = NS.rangeData.rangeFromPrefs(prefs);
+      const scope = await NS.rangeData.resolve(prefs);
+      if (seq !== state.seq) return;
+      const query = {
+        start: range.start,
+        end: range.end,
         dateBasis: prefs.dateBasis,
-        excludeCancelled: prefs.excludeCancelled
-      });
+        excludeCancelled: prefs.excludeCancelled !== false
+      };
+      const force = state.forceRefresh;
+      state.forceRefresh = false;
+      const monthRange = NS.rangeData.currentMonthRange();
+      const isCurrentMonth = query.start === monthRange.start && query.end === monthRange.end;
+      let daily = null;
+      // 次日首次访问自动全量刷新本月。面板同时打开时会复用 rangeData 内的同一个在途请求。
+      if (!(force && isCurrentMonth)) {
+        daily = await NS.rangeData.refreshThisMonthIfNeeded(scope, prefs, {
+          onProgress: function (p) {
+            if (seq === state.seq) setText('自动刷新本月… ' + p.done + '/' + p.total + ' 人', false);
+          }
+        });
+        if (seq !== state.seq) return;
+      }
+      let snapshot = (!force && isCurrentMonth && daily && daily.snapshot) ? daily.snapshot : null;
+      if (!snapshot && !force) snapshot = await NS.rangeData.readSnapshot(scope, query);
+      if (!snapshot && isCurrentMonth && daily && daily.error) throw daily.error;
+      if (!snapshot) {
+        snapshot = await NS.rangeData.fetchSnapshot(scope, Object.assign({}, query, {
+          onProgress: function (p) {
+            if (seq === state.seq) setText('统计中… ' + p.done + '/' + p.total + ' 人', false);
+          }
+        }));
+      }
+      if (seq !== state.seq) return;
+
+      const rows = snapshot.rows || [];
       const sum = NS.stats.summarize(rows);
-      const skipped = prefs.excludeCancelled
-        ? Math.max(0, (res.items ? res.items.length : 0) - rows.length)
-        : 0;
+      const fieldMap = scope.fieldMap;
       const hasFieldMap = !!(fieldMap && (fieldMap.estimated || fieldMap.actual));
       // 预计工时字段没识别出来时整表 est 都是 0，这时候提示「全都没填」是误报
       const canWarnMissing = !!(fieldMap && fieldMap.estimated && fieldMap.estimated.id) &&
         prefs.warnMissingEst !== false;
       const missing = canWarnMissing ? NS.stats.missingEst(rows).count : 0;
-      renderResult(sum, hasFieldMap, !!res.truncated, query.scopeText, skipped, missing);
+      renderResult(sum, hasFieldMap, !!snapshot.truncated, range, snapshot.savedAt, missing,
+        snapshot.memberErrors, rows, scope.members.length);
     } catch (e) {
       if (seq !== state.seq || isAbort(e)) return;
       warn(e);
       renderError(e);
-    } finally {
-      if (state.abort === controller) state.abort = null;
     }
   }
 
@@ -1034,7 +1052,8 @@
     doRefresh().catch(warn);
   }
 
-  function refreshNow() {
+  function refreshNow(force) {
+    if (force === true) state.forceRefresh = true;
     state.lastKey = '';
     runRefresh();
   }
@@ -1094,6 +1113,9 @@
     if (!a || !b) return false;
     return a.showSummaryBar === b.showSummaryBar &&
       a.dateBasis === b.dateBasis &&
+      a.defaultRange === b.defaultRange &&
+      JSON.stringify(a.summaryBarItems || []) === JSON.stringify(b.summaryBarItems || []) &&
+      a.includeSelf === b.includeSelf &&
       a.excludeCancelled === b.excludeCancelled &&
       a.warnMissingEst === b.warnMissingEst &&
       a.theme === b.theme;

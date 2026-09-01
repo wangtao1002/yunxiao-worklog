@@ -71,10 +71,13 @@
 })();
 </script>
 <script src="../src/util.js"></script>
+<script src="../src/summary-items.js"></script>
 <script src="../src/store.js"></script>
 <script src="../src/api.js"></script>
 <script src="../src/detect.js"></script>
 <script src="../src/stats.js"></script>
+<script src="../src/workcalendar.js"></script>
+<script src="../src/range-data.js"></script>
 <script src="../src/ui.js"></script>
 <script src="../src/panel.js"></script>
 <script src="../src/summarybar.js"></script>
@@ -95,7 +98,7 @@
   Y.api.saveFieldValue = (id, fid, v, o) =>
     Promise.resolve({ ok: true, dryRun: !o || o.dryRun !== false, would: { workitemId: id, fieldId: fid, from: '0', to: v } });
 
-  // 面板有「2 分钟内不重复取数」的缓存，预览里切数据集要强制走一次刷新
+  // 预览里切数据集要强制刷新当前精确区间，覆盖本地快照
   function forceReload() {
     if (!(Y.panel.isOpen && Y.panel.isOpen())) { Y.panel.open(); return; }
     Y.panel.close();
@@ -104,7 +107,7 @@
       const host = document.getElementById('yxwt-panel');
       if (!host) return;
       const btn = [...host.shadowRoot.querySelectorAll('button')]
-        .find((x) => x.textContent.trim() === '刷新');
+        .find((x) => x.textContent.trim() === '刷新此区间' || x.textContent.trim() === '加载此区间');
       if (btn) btn.click();
     }, 120);
   }
