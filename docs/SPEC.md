@@ -64,6 +64,8 @@ const DEFAULTS = {
   prefs: {
     dailyTargetHours: 8,
     dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
+    taskScope: 'all',          // 'all' | 'completed'，仅影响本地统计展示
+    workDiffBasis: 'max',      // 'max' | 'estimated' | 'actual'，工作日目标偏差口径
     defaultRange: 'thisWeek',
     summaryBarItems: [],       // 空数组沿用旧版；非空按选择显示且强制包含 range
     members: [],               // 团队视图里额外纳入的 userId 数组（不含自己）
@@ -410,7 +412,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 设置页（独立页面，不能直接调云效接口，所有需要接口的操作转发给 content script 或只做本地配置）：
 - 每日标准工时（number，默认 8）
-- 默认归集口径、默认时间范围
+- 默认归集口径、任务状态范围、达标工时口径、默认时间范围
 - 悬浮条显示项（多选）：空选保持旧版显示；自定义后范围必显；默认范围变化时剔除不适用项
 - 统计时排除"已取消"（checkbox）
 - 显示列表页合计条（checkbox）

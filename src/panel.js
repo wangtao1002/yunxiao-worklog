@@ -416,7 +416,13 @@
         }
         if (!state.open) return;
         if (before.dryRun !== next.dryRun) renderEditBar();
-        if (before.dailyTargetHours !== next.dailyTargetHours && state.booted) renderCalendar();
+        if (state.booted && (
+          before.taskScope !== next.taskScope ||
+          before.workDiffBasis !== next.workDiffBasis ||
+          before.hoursBasis !== next.hoursBasis ||
+          before.warnMissingEst !== next.warnMissingEst ||
+          before.dailyTargetHours !== next.dailyTargetHours
+        )) renderAll();
       });
     } catch (e) {
       // 订阅失败不影响主流程，只是失去实时同步
@@ -871,7 +877,9 @@
     } else if (state.booted && !state.hasSnapshot) {
       txt = state.start + ' ~ ' + state.end + ' · 未加载';
     } else if (state.booted) {
-      const bits = [state.start + ' ~ ' + state.end, '共 ' + state.rows.length + ' 条'];
+      const rows = taskScopeRows();
+      const bits = [state.start + ' ~ ' + state.end, '共 ' + rows.length + ' 条'];
+      if (taskScope() === 'completed') bits.push('仅已完成');
       if (state.truncated) bits.push('已达分页上限，数据可能不全');
       if (state.loadedAt) {
         const d = new Date(state.loadedAt);
@@ -1044,11 +1052,12 @@
       state.loadedAt = Number(snapshot.savedAt) || Date.now();
       state.progress = null;
       // 重新取数后仍停在旧的单日下钻上，很容易出现「明细 0 / N 条」而用户不知道为什么
-      if (state.dayFilter && state.rows.every(function (r) { return r.date !== state.dayFilter; })) {
+      const scopedRows = taskScopeRows();
+      if (state.dayFilter && scopedRows.every(function (r) { return r.date !== state.dayFilter; })) {
         state.dayFilter = null;
       }
       // 「只看未填预计」同理：新区间可能一条都不缺，留着筛选就是一张空表
-      if (state.missingOnly && !countMissing(state.rows)) state.missingOnly = false;
+      if (state.missingOnly && !countMissing(scopedRows)) state.missingOnly = false;
       // 置顶开关跟着设置页的总开关走（面板里可临时取消勾选，重新取数时回到设置的值）
       state.missingTop = !(state.prefs && state.prefs.warnMissingEst === false);
       renderFilters();
@@ -1129,10 +1138,12 @@
     const box = showStateBox();
     box.className = 'yxp-state';
     box.style.textAlign = 'center';
-    add(box, el('div', 'big', '这个区间没有查到工作项'));
-    add(box, el('div', 'msg',
-      '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
-      '也可能是这些任务没填工时字段。'));
+    const completedOnly = taskScope() === 'completed' && state.rows.length > 0;
+    add(box, el('div', 'big', completedOnly ? '这个区间没有已完成任务' : '这个区间没有查到工作项'));
+    add(box, el('div', 'msg', completedOnly
+      ? '当前设置为“仅已完成”。可在设置页把“任务状态范围”改回“全部任务”。'
+      : '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
+        '也可能是这些任务没填工时字段。'));
     const acts = el('div', 'acts');
     add(acts, btn('yxp-btn primary', '刷新此区间', function () { load({ force: true }); }));
     add(acts, btn('yxp-btn', '打开设置', openOptions));
@@ -1162,7 +1173,7 @@
     if (state.error) { renderErrorBody(); return; }
     if (state.loading && !state.rows.length) { renderLoadingBody(); return; }
     if (!state.hasSnapshot) { renderNotLoadedBody(); renderStatus(); return; }
-    if (!state.rows.length) { renderEmptyBody(); return; }
+    if (!taskScopeRows().length) { renderEmptyBody(); return; }
     showSections();
     renderOverview();
     renderCalendar();
@@ -1171,15 +1182,29 @@
     renderStatus();
   }
 
-  /* -------------------------------------------------- 统计口径（预计 / 实际 / 两者） */
+  /* -------------------------------------------------- 统计展示口径（预计 / 实际 / 两者） */
 
   /**
-   * 单值指标（热力图着色、日均、工作日偏差、未填告警、分组排序）拿哪个字段当基准。
+   * 展示指标（热力图着色、日均、未填告警、分组排序）拿哪个字段当基准。
    * 天然双值的地方（预计/实际/偏差三张卡、明细两列、CSV）不受这里影响，它们本来就并排给。
    */
   function hoursBasis() {
     const b = state.prefs && state.prefs.hoursBasis;
     return b === 'actual' || b === 'both' ? b : 'estimated';
+  }
+
+  function taskScope() {
+    return state.prefs && state.prefs.taskScope === 'completed' ? 'completed' : 'all';
+  }
+
+  function workDiffBasis() {
+    const b = state.prefs && state.prefs.workDiffBasis;
+    return b === 'estimated' || b === 'actual' ? b : 'max';
+  }
+
+  function workDiffBasisLabel() {
+    const b = workDiffBasis();
+    return b === 'estimated' ? '预计工时' : (b === 'actual' ? '实际工时' : '预计/实际逐任务取较大值');
   }
 
   function usesEst() { const b = hoursBasis(); return b === 'estimated' || b === 'both'; }
@@ -1261,11 +1286,21 @@
     renderTable();
   }
 
-  /** 当前明细表可见的行（搜索 + 选中某天 + 只看未填） */
+  /** 设置里的任务状态范围统一作用于概览、日历、分组、明细和写入操作。 */
+  function taskScopeRows() {
+    if (NS.stats && typeof NS.stats.filterByTaskScope === 'function') {
+      return NS.stats.filterByTaskScope(state.rows, taskScope());
+    }
+    return taskScope() === 'completed'
+      ? state.rows.filter(function (r) { return !!(r && r.isDone); })
+      : state.rows.slice();
+  }
+
+  /** 当前明细表可见的行（任务状态范围 + 搜索 + 选中某天 + 只看未填） */
   function visibleRows() {
     const q = state.search.trim().toLowerCase();
     const missOnly = state.missingOnly && canWarnMissing();
-    return state.rows.filter(function (r) {
+    return taskScopeRows().filter(function (r) {
       if (state.dayFilter && r.date !== state.dayFilter) return false;
       if (missOnly && !isMissing(r)) return false;
       if (!q) return true;
@@ -1354,7 +1389,7 @@
     add(workCards, card('工作日总工时', hours(work.hours), 'h', workSub,
       work.unsupportedYears.length ? 'yxp-warn' : ''));
 
-    addWorkDiffCard(workCards, '工时偏差', s, work.hours, '工作日总工时');
+    addWorkDiffCard(workCards, '工时偏差', rows, work.hours, '工作日总工时');
 
     if (state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek') {
       const today = U.toYMD(new Date());
@@ -1368,45 +1403,38 @@
       add(workCards, card('截止今日工时', hours(through.hours), 'h', throughSub,
         through.unsupportedYears.length ? 'yxp-warn' : ''));
 
-      addWorkDiffCard(workCards, '截止今日工时偏差', s, through.hours, '截止今日工时');
+      addWorkDiffCard(workCards, '截止今日工时偏差', rows, through.hours, '截止今日工时');
     }
 
     add(sec, workCards);
   }
 
   /**
-   * 「跟工作日目标比」的偏差卡。原来写死用实际工时，跟日均（用预计）不是一套口径，
-   * 现在统一跟随设置：both 时一张卡里给两个数，不再额外加卡把概览撑爆。
+   * 「跟工作日目标比」的偏差卡使用独立设置，不影响热力图、日均等展示口径。
    */
-  function addWorkDiffCard(box, label, s, targetHours, targetName) {
-    const est = (Number(s.est) || 0) - targetHours;
-    const act = (Number(s.act) || 0) - targetHours;
-    const sign = function (v) { return (v > 0 ? '+' : '') + hours(v); };
-    const tone = function (v) { return v > 0 ? 'yxp-bad' : (v < 0 ? 'yxp-good' : ''); };
-    if (hoursBasis() === 'both') {
-      add(box, card(label, sign(est) + ' / ' + sign(act), 'h',
-        '预计 / 实际 − ' + targetName, tone(act)));
-      return;
-    }
-    const v = hoursBasis() === 'actual' ? act : est;
-    const from = hoursBasis() === 'actual' ? '实际' : '预计';
-    add(box, card(label, sign(v), 'h', from + ' − ' + targetName, tone(v)));
+  function addWorkDiffCard(box, label, rows, targetHours, targetName) {
+    const total = NS.stats.workHoursTotal(rows, workDiffBasis());
+    const diff = total - targetHours;
+    const sign = (diff > 0 ? '+' : '') + hours(diff);
+    const tone = diff > 0 ? 'yxp-bad' : (diff < 0 ? 'yxp-good' : '');
+    add(box, card(label, sign, 'h', workDiffBasisLabel() + ' − ' + targetName, tone));
   }
 
   /**
-   * 漏填工时的警示条。数字用的是**整个时间区间**（state.rows），不随下面的搜索 /
+   * 漏填工时的警示条。数字用的是**任务状态范围内的整个时间区间**，不随下面的搜索 /
    * 单日下钻变化——它回答的是「这次查的这段时间里有没有漏记」，一点筛选就跳数会看不懂。
    */
   function renderMissingBar(sec) {
     if (!canWarnMissing()) return;
-    const total = countMissing(state.rows);
+    const rows = taskScopeRows();
+    const total = countMissing(rows);
     if (!total) return;
     const bar = el('div', 'yxp-note yxp-badnote yxp-missbar');
     let what = '「' + fieldLabel('est') + '」';
     if (hoursBasis() === 'actual') what = '「' + fieldLabel('act') + '」';
     else if (hoursBasis() === 'both') {
       // both 口径下分别报数，只说「没填全」用户会不知道该补哪一个
-      const m = NS.stats.missingHours(state.rows, 'both');
+      const m = NS.stats.missingHours(rows, 'both');
       what = '工时（' + fieldLabel('est') + '缺 ' + m.est + ' 条、' + fieldLabel('act') + '缺 ' + m.act + ' 条）';
     }
     add(bar, el('span', '', '⚠ ' + state.start + ' ~ ' + state.end + ' 这段里有 ' + total +
@@ -1437,7 +1465,7 @@
   function renderCalendar() {
     const sec = clear(refs.secCalendar);
     const target = dailyTarget();
-    const days = NS.stats.byDay(state.rows, state.start, state.end, {
+    const days = NS.stats.byDay(taskScopeRows(), state.start, state.end, {
       dailyTargetHours: target,
       isWorkday: function (ymd) { return NS.workcalendar.classify(ymd).workday; }
     }) || [];
@@ -1665,7 +1693,7 @@
     }
 
     if (canWarnMissing()) {
-      const missCount = countMissing(state.rows);
+      const missCount = countMissing(taskScopeRows());
       if (missCount || state.missingOnly) {
         const only = btn('yxp-btn' + (state.missingOnly ? ' primary' : ''),
           state.missingOnly ? '✓ 只看未填预计（' + missCount + '）' : '只看未填预计（' + missCount + '）',
@@ -1792,7 +1820,7 @@
     const limited = rows.slice(0, MAX_RENDER_ROWS);
     limited.forEach(function (r) { add(tbody, buildRow(r)); });
 
-    if (refs.tableCount) refs.tableCount.textContent = rows.length + ' / ' + state.rows.length + ' 条';
+    if (refs.tableCount) refs.tableCount.textContent = rows.length + ' / ' + taskScopeRows().length + ' 条';
     syncFillBtn();
 
     if (refs.tableNote) {
@@ -2025,7 +2053,7 @@
 
   function changedList() {
     const out = [];
-    state.rows.forEach(function (r) {
+    taskScopeRows().forEach(function (r) {
       const e = editsOf(r);
       if (!e) return;
       EDITABLE.forEach(function (x) {

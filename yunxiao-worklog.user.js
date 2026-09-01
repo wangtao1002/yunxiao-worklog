@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云效工时统计
 // @namespace    https://devops.aliyun.com/
-// @version      0.3.0
+// @version      0.3.1
 // @description  在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。
 // @author       abner
 // @license      MIT
@@ -21,8 +21,8 @@
   'use strict';
 
   window.YXWT = window.YXWT || {};
-  window.YXWT.__version = "0.3.0";
-  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">统计口径<small>热力图、日均工时、工作日偏差、未填提醒、分组排序拿哪个字段当基准<\/small><\/div>\n      <div>\n        <select id=\"hoursBasis\"><\/select>\n        <div class=\"hint\" id=\"hoursBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填工时的任务（按上面的统计口径）<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
+  window.YXWT.__version = "0.3.1";
+  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">任务状态范围<small>全部任务，或仅统计云效已标记完成的任务<\/small><\/div>\n      <div><select id=\"taskScope\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">达标工时口径<small>“工时偏差”和“截止今日工时偏差”拿哪组工时与工作日目标比较<\/small><\/div>\n      <div>\n        <select id=\"workDiffBasis\"><\/select>\n        <div class=\"hint\" id=\"workDiffBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">统计展示口径<small>热力图、日均工时、未填提醒和分组排序拿哪个字段当基准<\/small><\/div>\n      <div>\n        <select id=\"hoursBasis\"><\/select>\n        <div class=\"hint\" id=\"hoursBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填工时的任务（按上面的统计展示口径）<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
 
   // ---- options.js（原文照搬，只把 window / document 从全局改成形参）----
   window.YXWT.__optionsApp = function (window, document) {
@@ -40,6 +40,20 @@
     ['finishTime', '实际完成时间'],
     ['planStart', '计划开始时间']
   ];
+  const TASK_SCOPE_OPTIONS = [
+    ['all', '全部任务（默认）'],
+    ['completed', '仅已完成']
+  ];
+  const WORK_DIFF_BASIS_OPTIONS = [
+    ['max', '预计 / 实际逐任务取较大值（默认）'],
+    ['estimated', '预计工时'],
+    ['actual', '实际工时']
+  ];
+  const WORK_DIFF_BASIS_HINTS = {
+    max: '每个任务分别比较预计和实际工时，取较大值后再合计；适合两种工时并非每条都同时填写的情况。',
+    estimated: '只用预计工时合计值与工作日目标比较。',
+    actual: '只用实际工时合计值与工作日目标比较。'
+  };
   const RANGE_OPTIONS = [
     ['today', '今天'],
     ['yesterday', '昨天'],
@@ -51,9 +65,9 @@
     ['last30', '近 30 天']
   ];
   const HOURS_BASIS_OPTIONS = [
-    { value: 'estimated', label: '预计工时（默认）' },
-    { value: 'actual', label: '实际工时' },
-    { value: 'both', label: '两者都看' }
+    ['estimated', '预计工时（默认）'],
+    ['actual', '实际工时'],
+    ['both', '两者都看']
   ];
 
   // 「实际工时」在云效里是工时登记的累加值，团队不用工时登记的话这一列全是 0，
@@ -61,7 +75,7 @@
   const BASIS_HINTS = {
     estimated: '按「预计工时」字段统计。适合排期驱动、靠计划工时管理进度的团队。',
     actual: '按「实际工时」字段统计。注意：云效里它是工时登记的累加值，团队没在用工时登记的话这一列会全是 0。',
-    both: '两个字段都要用。日均、工作日偏差会各给一个数，未填提醒只要缺一个就标红。'
+    both: '两个字段都要用。日均会显示两个数，未填提醒只要缺一个就标红；工作日偏差由“达标工时口径”单独控制。'
   };
 
   const THEME_OPTIONS = [
@@ -317,6 +331,10 @@
     const p = cfg.prefs;
     $('dailyTargetHours').value = String(p.dailyTargetHours);
     $('dateBasis').value = p.dateBasis;
+    $('taskScope').value = p.taskScope === 'completed' ? 'completed' : 'all';
+    $('workDiffBasis').value = p.workDiffBasis === 'estimated' || p.workDiffBasis === 'actual'
+      ? p.workDiffBasis : 'max';
+    $('workDiffBasisHint').textContent = WORK_DIFF_BASIS_HINTS[$('workDiffBasis').value] || '';
     $('defaultRange').value = p.defaultRange;
     $('theme').value = p.theme;
     $('excludeCancelled').checked = !!p.excludeCancelled;
@@ -344,6 +362,13 @@
 
     $('dateBasis').addEventListener('change', function () {
       savePrefs({ dateBasis: this.value });
+    });
+    $('taskScope').addEventListener('change', function () {
+      savePrefs({ taskScope: this.value });
+    });
+    $('workDiffBasis').addEventListener('change', function () {
+      $('workDiffBasisHint').textContent = WORK_DIFF_BASIS_HINTS[this.value] || '';
+      savePrefs({ workDiffBasis: this.value });
     });
     $('defaultRange').addEventListener('change', function () {
       const select = this;
@@ -776,6 +801,8 @@
     $('foot-ver').textContent = '云效工时统计' + (version ? ' v' + version : '') + ' · 数据只存在本地，无埋点无上传';
 
     fillSelect($('dateBasis'), BASIS_OPTIONS);
+    fillSelect($('taskScope'), TASK_SCOPE_OPTIONS);
+    fillSelect($('workDiffBasis'), WORK_DIFF_BASIS_OPTIONS);
     fillSelect($('hoursBasis'), HOURS_BASIS_OPTIONS);
     fillSelect($('defaultRange'), RANGE_OPTIONS);
     fillSelect($('theme'), THEME_OPTIONS);
@@ -1427,12 +1454,15 @@
     prefs: {
       dailyTargetHours: 8,
       dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
+      taskScope: 'all',          // 'all' | 'completed'，仅影响本地展示与统计，不改变区间快照
+      // 工作日目标偏差采用的有效工时：逐任务取预计/实际较大值，或固定使用其中一列。
+      workDiffBasis: 'max',      // 'max' | 'estimated' | 'actual'
       defaultRange: 'thisWeek',
       // 空数组保持旧版悬浮条样式；非空时按所选概览指标显示，range 由 summaryItems 强制保留。
       summaryBarItems: [],
       members: [],               // 【已废弃】旧的扁平成员数组，仅用于一次性迁移到 membersByOrg
       includeSelf: true,         // 统计里是否包含自己（想「只看某个同事」时可以关掉）
-      // 单值指标（热力图 / 日均 / 工作日偏差 / 未填告警 / 分组排序）拿哪个字段当基准。
+      // 展示指标（热力图 / 日均 / 未填告警 / 分组排序）拿哪个字段当基准。
       // 'estimated' | 'actual' | 'both'。默认预计——0.2.x 之前的行为就是这个。
       hoursBasis: 'estimated',
       showSummaryBar: true,
@@ -3889,6 +3919,30 @@
     };
   }
 
+  /**
+   * 设置里的任务状态范围只影响本地统计，不参与接口查询和快照键。
+   * “已完成”严格沿用 normalize 产出的 isDone（云效原生 finishTime）。
+   */
+  function filterByTaskScope(rows, scope) {
+    const list = Array.isArray(rows) ? rows : [];
+    if (scope !== 'completed') return list.slice();
+    return list.filter(function (row) { return !!(row && row.isDone); });
+  }
+
+  /** 工作日目标偏差使用的有效工时合计。max 是逐任务取较大值，不是对两个总数取较大值。 */
+  function workHoursTotal(rows, basis) {
+    const list = Array.isArray(rows) ? rows : [];
+    const mode = basis === 'estimated' || basis === 'actual' ? basis : 'max';
+    let total = 0;
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i] || {};
+      const est = toNum(row.est);
+      const act = toNum(row.act);
+      total += mode === 'estimated' ? est : (mode === 'actual' ? act : Math.max(est, act));
+    }
+    return round2(total);
+  }
+
   function groupKeyOf(row, key) {
     if (key === 'project') {
       return { key: row.projectId || row.project || '(无项目)', label: row.project || '(无项目)' };
@@ -4218,6 +4272,8 @@
   NS.stats = {
     normalize: normalize,
     summarize: summarize,
+    filterByTaskScope: filterByTaskScope,
+    workHoursTotal: workHoursTotal,
     groupBy: groupBy,
     byDay: byDay,
     byMember: byMember,
@@ -6034,7 +6090,13 @@ button,input,select,textarea{font:inherit;color:inherit;}
         }
         if (!state.open) return;
         if (before.dryRun !== next.dryRun) renderEditBar();
-        if (before.dailyTargetHours !== next.dailyTargetHours && state.booted) renderCalendar();
+        if (state.booted && (
+          before.taskScope !== next.taskScope ||
+          before.workDiffBasis !== next.workDiffBasis ||
+          before.hoursBasis !== next.hoursBasis ||
+          before.warnMissingEst !== next.warnMissingEst ||
+          before.dailyTargetHours !== next.dailyTargetHours
+        )) renderAll();
       });
     } catch (e) {
       // 订阅失败不影响主流程，只是失去实时同步
@@ -6489,7 +6551,9 @@ button,input,select,textarea{font:inherit;color:inherit;}
     } else if (state.booted && !state.hasSnapshot) {
       txt = state.start + ' ~ ' + state.end + ' · 未加载';
     } else if (state.booted) {
-      const bits = [state.start + ' ~ ' + state.end, '共 ' + state.rows.length + ' 条'];
+      const rows = taskScopeRows();
+      const bits = [state.start + ' ~ ' + state.end, '共 ' + rows.length + ' 条'];
+      if (taskScope() === 'completed') bits.push('仅已完成');
       if (state.truncated) bits.push('已达分页上限，数据可能不全');
       if (state.loadedAt) {
         const d = new Date(state.loadedAt);
@@ -6662,11 +6726,12 @@ button,input,select,textarea{font:inherit;color:inherit;}
       state.loadedAt = Number(snapshot.savedAt) || Date.now();
       state.progress = null;
       // 重新取数后仍停在旧的单日下钻上，很容易出现「明细 0 / N 条」而用户不知道为什么
-      if (state.dayFilter && state.rows.every(function (r) { return r.date !== state.dayFilter; })) {
+      const scopedRows = taskScopeRows();
+      if (state.dayFilter && scopedRows.every(function (r) { return r.date !== state.dayFilter; })) {
         state.dayFilter = null;
       }
       // 「只看未填预计」同理：新区间可能一条都不缺，留着筛选就是一张空表
-      if (state.missingOnly && !countMissing(state.rows)) state.missingOnly = false;
+      if (state.missingOnly && !countMissing(scopedRows)) state.missingOnly = false;
       // 置顶开关跟着设置页的总开关走（面板里可临时取消勾选，重新取数时回到设置的值）
       state.missingTop = !(state.prefs && state.prefs.warnMissingEst === false);
       renderFilters();
@@ -6747,10 +6812,12 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const box = showStateBox();
     box.className = 'yxp-state';
     box.style.textAlign = 'center';
-    add(box, el('div', 'big', '这个区间没有查到工作项'));
-    add(box, el('div', 'msg',
-      '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
-      '也可能是这些任务没填工时字段。'));
+    const completedOnly = taskScope() === 'completed' && state.rows.length > 0;
+    add(box, el('div', 'big', completedOnly ? '这个区间没有已完成任务' : '这个区间没有查到工作项'));
+    add(box, el('div', 'msg', completedOnly
+      ? '当前设置为“仅已完成”。可在设置页把“任务状态范围”改回“全部任务”。'
+      : '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
+        '也可能是这些任务没填工时字段。'));
     const acts = el('div', 'acts');
     add(acts, btn('yxp-btn primary', '刷新此区间', function () { load({ force: true }); }));
     add(acts, btn('yxp-btn', '打开设置', openOptions));
@@ -6780,7 +6847,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (state.error) { renderErrorBody(); return; }
     if (state.loading && !state.rows.length) { renderLoadingBody(); return; }
     if (!state.hasSnapshot) { renderNotLoadedBody(); renderStatus(); return; }
-    if (!state.rows.length) { renderEmptyBody(); return; }
+    if (!taskScopeRows().length) { renderEmptyBody(); return; }
     showSections();
     renderOverview();
     renderCalendar();
@@ -6789,15 +6856,29 @@ button,input,select,textarea{font:inherit;color:inherit;}
     renderStatus();
   }
 
-  /* -------------------------------------------------- 统计口径（预计 / 实际 / 两者） */
+  /* -------------------------------------------------- 统计展示口径（预计 / 实际 / 两者） */
 
   /**
-   * 单值指标（热力图着色、日均、工作日偏差、未填告警、分组排序）拿哪个字段当基准。
+   * 展示指标（热力图着色、日均、未填告警、分组排序）拿哪个字段当基准。
    * 天然双值的地方（预计/实际/偏差三张卡、明细两列、CSV）不受这里影响，它们本来就并排给。
    */
   function hoursBasis() {
     const b = state.prefs && state.prefs.hoursBasis;
     return b === 'actual' || b === 'both' ? b : 'estimated';
+  }
+
+  function taskScope() {
+    return state.prefs && state.prefs.taskScope === 'completed' ? 'completed' : 'all';
+  }
+
+  function workDiffBasis() {
+    const b = state.prefs && state.prefs.workDiffBasis;
+    return b === 'estimated' || b === 'actual' ? b : 'max';
+  }
+
+  function workDiffBasisLabel() {
+    const b = workDiffBasis();
+    return b === 'estimated' ? '预计工时' : (b === 'actual' ? '实际工时' : '预计/实际逐任务取较大值');
   }
 
   function usesEst() { const b = hoursBasis(); return b === 'estimated' || b === 'both'; }
@@ -6879,11 +6960,21 @@ button,input,select,textarea{font:inherit;color:inherit;}
     renderTable();
   }
 
-  /** 当前明细表可见的行（搜索 + 选中某天 + 只看未填） */
+  /** 设置里的任务状态范围统一作用于概览、日历、分组、明细和写入操作。 */
+  function taskScopeRows() {
+    if (NS.stats && typeof NS.stats.filterByTaskScope === 'function') {
+      return NS.stats.filterByTaskScope(state.rows, taskScope());
+    }
+    return taskScope() === 'completed'
+      ? state.rows.filter(function (r) { return !!(r && r.isDone); })
+      : state.rows.slice();
+  }
+
+  /** 当前明细表可见的行（任务状态范围 + 搜索 + 选中某天 + 只看未填） */
   function visibleRows() {
     const q = state.search.trim().toLowerCase();
     const missOnly = state.missingOnly && canWarnMissing();
-    return state.rows.filter(function (r) {
+    return taskScopeRows().filter(function (r) {
       if (state.dayFilter && r.date !== state.dayFilter) return false;
       if (missOnly && !isMissing(r)) return false;
       if (!q) return true;
@@ -6972,7 +7063,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     add(workCards, card('工作日总工时', hours(work.hours), 'h', workSub,
       work.unsupportedYears.length ? 'yxp-warn' : ''));
 
-    addWorkDiffCard(workCards, '工时偏差', s, work.hours, '工作日总工时');
+    addWorkDiffCard(workCards, '工时偏差', rows, work.hours, '工作日总工时');
 
     if (state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek') {
       const today = U.toYMD(new Date());
@@ -6986,45 +7077,38 @@ button,input,select,textarea{font:inherit;color:inherit;}
       add(workCards, card('截止今日工时', hours(through.hours), 'h', throughSub,
         through.unsupportedYears.length ? 'yxp-warn' : ''));
 
-      addWorkDiffCard(workCards, '截止今日工时偏差', s, through.hours, '截止今日工时');
+      addWorkDiffCard(workCards, '截止今日工时偏差', rows, through.hours, '截止今日工时');
     }
 
     add(sec, workCards);
   }
 
   /**
-   * 「跟工作日目标比」的偏差卡。原来写死用实际工时，跟日均（用预计）不是一套口径，
-   * 现在统一跟随设置：both 时一张卡里给两个数，不再额外加卡把概览撑爆。
+   * 「跟工作日目标比」的偏差卡使用独立设置，不影响热力图、日均等展示口径。
    */
-  function addWorkDiffCard(box, label, s, targetHours, targetName) {
-    const est = (Number(s.est) || 0) - targetHours;
-    const act = (Number(s.act) || 0) - targetHours;
-    const sign = function (v) { return (v > 0 ? '+' : '') + hours(v); };
-    const tone = function (v) { return v > 0 ? 'yxp-bad' : (v < 0 ? 'yxp-good' : ''); };
-    if (hoursBasis() === 'both') {
-      add(box, card(label, sign(est) + ' / ' + sign(act), 'h',
-        '预计 / 实际 − ' + targetName, tone(act)));
-      return;
-    }
-    const v = hoursBasis() === 'actual' ? act : est;
-    const from = hoursBasis() === 'actual' ? '实际' : '预计';
-    add(box, card(label, sign(v), 'h', from + ' − ' + targetName, tone(v)));
+  function addWorkDiffCard(box, label, rows, targetHours, targetName) {
+    const total = NS.stats.workHoursTotal(rows, workDiffBasis());
+    const diff = total - targetHours;
+    const sign = (diff > 0 ? '+' : '') + hours(diff);
+    const tone = diff > 0 ? 'yxp-bad' : (diff < 0 ? 'yxp-good' : '');
+    add(box, card(label, sign, 'h', workDiffBasisLabel() + ' − ' + targetName, tone));
   }
 
   /**
-   * 漏填工时的警示条。数字用的是**整个时间区间**（state.rows），不随下面的搜索 /
+   * 漏填工时的警示条。数字用的是**任务状态范围内的整个时间区间**，不随下面的搜索 /
    * 单日下钻变化——它回答的是「这次查的这段时间里有没有漏记」，一点筛选就跳数会看不懂。
    */
   function renderMissingBar(sec) {
     if (!canWarnMissing()) return;
-    const total = countMissing(state.rows);
+    const rows = taskScopeRows();
+    const total = countMissing(rows);
     if (!total) return;
     const bar = el('div', 'yxp-note yxp-badnote yxp-missbar');
     let what = '「' + fieldLabel('est') + '」';
     if (hoursBasis() === 'actual') what = '「' + fieldLabel('act') + '」';
     else if (hoursBasis() === 'both') {
       // both 口径下分别报数，只说「没填全」用户会不知道该补哪一个
-      const m = NS.stats.missingHours(state.rows, 'both');
+      const m = NS.stats.missingHours(rows, 'both');
       what = '工时（' + fieldLabel('est') + '缺 ' + m.est + ' 条、' + fieldLabel('act') + '缺 ' + m.act + ' 条）';
     }
     add(bar, el('span', '', '⚠ ' + state.start + ' ~ ' + state.end + ' 这段里有 ' + total +
@@ -7055,7 +7139,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
   function renderCalendar() {
     const sec = clear(refs.secCalendar);
     const target = dailyTarget();
-    const days = NS.stats.byDay(state.rows, state.start, state.end, {
+    const days = NS.stats.byDay(taskScopeRows(), state.start, state.end, {
       dailyTargetHours: target,
       isWorkday: function (ymd) { return NS.workcalendar.classify(ymd).workday; }
     }) || [];
@@ -7283,7 +7367,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     }
 
     if (canWarnMissing()) {
-      const missCount = countMissing(state.rows);
+      const missCount = countMissing(taskScopeRows());
       if (missCount || state.missingOnly) {
         const only = btn('yxp-btn' + (state.missingOnly ? ' primary' : ''),
           state.missingOnly ? '✓ 只看未填预计（' + missCount + '）' : '只看未填预计（' + missCount + '）',
@@ -7410,7 +7494,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const limited = rows.slice(0, MAX_RENDER_ROWS);
     limited.forEach(function (r) { add(tbody, buildRow(r)); });
 
-    if (refs.tableCount) refs.tableCount.textContent = rows.length + ' / ' + state.rows.length + ' 条';
+    if (refs.tableCount) refs.tableCount.textContent = rows.length + ' / ' + taskScopeRows().length + ' 条';
     syncFillBtn();
 
     if (refs.tableNote) {
@@ -7643,7 +7727,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
   function changedList() {
     const out = [];
-    state.rows.forEach(function (r) {
+    taskScopeRows().forEach(function (r) {
       const e = editsOf(r);
       if (!e) return;
       EDITABLE.forEach(function (x) {
@@ -8184,6 +8268,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     defaultRange: 'thisWeek',
     summaryBarItems: [],
     includeSelf: true,
+    taskScope: 'all',
+    workDiffBasis: 'max',
     excludeCancelled: true,
     warnMissingEst: true,
     hoursBasis: 'estimated',
@@ -9020,7 +9106,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const overdue = NS.stats.overdue(rows, Date.now()) || { rate: 0 };
     const work = NS.workcalendar.summarize(range.start, range.end,
       prefs.dailyTargetHours, memberCount);
-    const workDiff = (Number(sum.act) || 0) - work.hours;
+    const workDiff = NS.stats.workHoursTotal(rows, prefs.workDiffBasis) - work.hours;
     const values = {
       range: { v: range.label },
       count: { v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条' },
@@ -9045,7 +9131,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       const throughEnd = today < range.end ? today : range.end;
       const through = NS.workcalendar.summarize(range.start, throughEnd,
         prefs.dailyTargetHours, memberCount);
-      const throughDiff = (Number(sum.act) || 0) - through.hours;
+      const throughDiff = NS.stats.workHoursTotal(rows, prefs.workDiffBasis) - through.hours;
       values.throughToday = {
         v: fmtHours(through.hours) + ' h', tone: through.unsupportedYears.length ? 'warn' : ''
       };
@@ -9098,6 +9184,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       }
     }
     let title = '统计范围：' + range.label + '（' + range.start + ' ~ ' + range.end + '）';
+    if (prefs.taskScope === 'completed') title += '\n任务状态范围：仅已完成';
     if (savedAt) title += '\n本地快照：' + new Date(savedAt).toLocaleString();
     if (missing > 0) {
       const what = state.prefs && state.prefs.hoursBasis === 'actual' ? '「实际工时」'
@@ -9179,7 +9266,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       }
       if (seq !== state.seq) return;
 
-      const rows = snapshot.rows || [];
+      const rows = NS.stats.filterByTaskScope(snapshot.rows || [], prefs.taskScope);
       const sum = NS.stats.summarize(rows);
       const fieldMap = scope.fieldMap;
       const hasFieldMap = !!(fieldMap && (fieldMap.estimated || fieldMap.actual));
@@ -9283,6 +9370,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
       a.defaultRange === b.defaultRange &&
       JSON.stringify(a.summaryBarItems || []) === JSON.stringify(b.summaryBarItems || []) &&
       a.includeSelf === b.includeSelf &&
+      a.taskScope === b.taskScope &&
+      a.workDiffBasis === b.workDiffBasis &&
       a.excludeCancelled === b.excludeCancelled &&
       a.warnMissingEst === b.warnMissingEst &&
       a.hoursBasis === b.hoursBasis &&

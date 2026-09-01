@@ -1,7 +1,7 @@
 # 隐私政策 / Privacy Policy
 
 **插件名称 / Extension:** 云效工时统计（Yunxiao Work-Hours Stats）
-**版本 / Version:** 0.2.0
+**版本 / Version:** 0.3.1
 **生效日期 / Effective date:** 2026-08-21
 
 ---

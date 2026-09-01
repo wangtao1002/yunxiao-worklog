@@ -266,6 +266,30 @@
     };
   }
 
+  /**
+   * 设置里的任务状态范围只影响本地统计，不参与接口查询和快照键。
+   * “已完成”严格沿用 normalize 产出的 isDone（云效原生 finishTime）。
+   */
+  function filterByTaskScope(rows, scope) {
+    const list = Array.isArray(rows) ? rows : [];
+    if (scope !== 'completed') return list.slice();
+    return list.filter(function (row) { return !!(row && row.isDone); });
+  }
+
+  /** 工作日目标偏差使用的有效工时合计。max 是逐任务取较大值，不是对两个总数取较大值。 */
+  function workHoursTotal(rows, basis) {
+    const list = Array.isArray(rows) ? rows : [];
+    const mode = basis === 'estimated' || basis === 'actual' ? basis : 'max';
+    let total = 0;
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i] || {};
+      const est = toNum(row.est);
+      const act = toNum(row.act);
+      total += mode === 'estimated' ? est : (mode === 'actual' ? act : Math.max(est, act));
+    }
+    return round2(total);
+  }
+
   function groupKeyOf(row, key) {
     if (key === 'project') {
       return { key: row.projectId || row.project || '(无项目)', label: row.project || '(无项目)' };
@@ -595,6 +619,8 @@
   NS.stats = {
     normalize: normalize,
     summarize: summarize,
+    filterByTaskScope: filterByTaskScope,
+    workHoursTotal: workHoursTotal,
     groupBy: groupBy,
     byDay: byDay,
     byMember: byMember,

@@ -22,12 +22,15 @@
     prefs: {
       dailyTargetHours: 8,
       dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
+      taskScope: 'all',          // 'all' | 'completed'，仅影响本地展示与统计，不改变区间快照
+      // 工作日目标偏差采用的有效工时：逐任务取预计/实际较大值，或固定使用其中一列。
+      workDiffBasis: 'max',      // 'max' | 'estimated' | 'actual'
       defaultRange: 'thisWeek',
       // 空数组保持旧版悬浮条样式；非空时按所选概览指标显示，range 由 summaryItems 强制保留。
       summaryBarItems: [],
       members: [],               // 【已废弃】旧的扁平成员数组，仅用于一次性迁移到 membersByOrg
       includeSelf: true,         // 统计里是否包含自己（想「只看某个同事」时可以关掉）
-      // 单值指标（热力图 / 日均 / 工作日偏差 / 未填告警 / 分组排序）拿哪个字段当基准。
+      // 展示指标（热力图 / 日均 / 未填告警 / 分组排序）拿哪个字段当基准。
       // 'estimated' | 'actual' | 'both'。默认预计——0.2.x 之前的行为就是这个。
       hoursBasis: 'estimated',
       showSummaryBar: true,

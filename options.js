@@ -19,6 +19,20 @@
     ['finishTime', '实际完成时间'],
     ['planStart', '计划开始时间']
   ];
+  const TASK_SCOPE_OPTIONS = [
+    ['all', '全部任务（默认）'],
+    ['completed', '仅已完成']
+  ];
+  const WORK_DIFF_BASIS_OPTIONS = [
+    ['max', '预计 / 实际逐任务取较大值（默认）'],
+    ['estimated', '预计工时'],
+    ['actual', '实际工时']
+  ];
+  const WORK_DIFF_BASIS_HINTS = {
+    max: '每个任务分别比较预计和实际工时，取较大值后再合计；适合两种工时并非每条都同时填写的情况。',
+    estimated: '只用预计工时合计值与工作日目标比较。',
+    actual: '只用实际工时合计值与工作日目标比较。'
+  };
   const RANGE_OPTIONS = [
     ['today', '今天'],
     ['yesterday', '昨天'],
@@ -30,9 +44,9 @@
     ['last30', '近 30 天']
   ];
   const HOURS_BASIS_OPTIONS = [
-    { value: 'estimated', label: '预计工时（默认）' },
-    { value: 'actual', label: '实际工时' },
-    { value: 'both', label: '两者都看' }
+    ['estimated', '预计工时（默认）'],
+    ['actual', '实际工时'],
+    ['both', '两者都看']
   ];
 
   // 「实际工时」在云效里是工时登记的累加值，团队不用工时登记的话这一列全是 0，
@@ -40,7 +54,7 @@
   const BASIS_HINTS = {
     estimated: '按「预计工时」字段统计。适合排期驱动、靠计划工时管理进度的团队。',
     actual: '按「实际工时」字段统计。注意：云效里它是工时登记的累加值，团队没在用工时登记的话这一列会全是 0。',
-    both: '两个字段都要用。日均、工作日偏差会各给一个数，未填提醒只要缺一个就标红。'
+    both: '两个字段都要用。日均会显示两个数，未填提醒只要缺一个就标红；工作日偏差由“达标工时口径”单独控制。'
   };
 
   const THEME_OPTIONS = [
@@ -296,6 +310,10 @@
     const p = cfg.prefs;
     $('dailyTargetHours').value = String(p.dailyTargetHours);
     $('dateBasis').value = p.dateBasis;
+    $('taskScope').value = p.taskScope === 'completed' ? 'completed' : 'all';
+    $('workDiffBasis').value = p.workDiffBasis === 'estimated' || p.workDiffBasis === 'actual'
+      ? p.workDiffBasis : 'max';
+    $('workDiffBasisHint').textContent = WORK_DIFF_BASIS_HINTS[$('workDiffBasis').value] || '';
     $('defaultRange').value = p.defaultRange;
     $('theme').value = p.theme;
     $('excludeCancelled').checked = !!p.excludeCancelled;
@@ -323,6 +341,13 @@
 
     $('dateBasis').addEventListener('change', function () {
       savePrefs({ dateBasis: this.value });
+    });
+    $('taskScope').addEventListener('change', function () {
+      savePrefs({ taskScope: this.value });
+    });
+    $('workDiffBasis').addEventListener('change', function () {
+      $('workDiffBasisHint').textContent = WORK_DIFF_BASIS_HINTS[this.value] || '';
+      savePrefs({ workDiffBasis: this.value });
     });
     $('defaultRange').addEventListener('change', function () {
       const select = this;
@@ -755,6 +780,8 @@
     $('foot-ver').textContent = '云效工时统计' + (version ? ' v' + version : '') + ' · 数据只存在本地，无埋点无上传';
 
     fillSelect($('dateBasis'), BASIS_OPTIONS);
+    fillSelect($('taskScope'), TASK_SCOPE_OPTIONS);
+    fillSelect($('workDiffBasis'), WORK_DIFF_BASIS_OPTIONS);
     fillSelect($('hoursBasis'), HOURS_BASIS_OPTIONS);
     fillSelect($('defaultRange'), RANGE_OPTIONS);
     fillSelect($('theme'), THEME_OPTIONS);
