@@ -109,7 +109,9 @@ def build(host):
         '// @namespace    https://devops.aliyun.com/',
         '// @version      %s' % version,
         '// @description  %s' % manifest['description'],
-        '// @author       王建涛',
+        '// @author       abner',
+        # Greasy Fork 要求声明许可证，否则发布时会拦下来（不声明＝默认不允许他人修改和再分发）
+        '// @license      MIT',
         '// @match        https://devops.aliyun.com/*',
         '// @run-at       document-idle',
         '// @noframes',

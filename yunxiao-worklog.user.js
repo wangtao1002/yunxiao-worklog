@@ -3,7 +3,8 @@
 // @namespace    https://devops.aliyun.com/
 // @version      0.1.7
 // @description  在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。
-// @author       王建涛
+// @author       abner
+// @license      MIT
 // @match        https://devops.aliyun.com/*
 // @run-at       document-idle
 // @noframes
