@@ -11,8 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_registerMenuCommand
-// @updateURL    https://raw.githubusercontent.com/ip18838237722-jpg/yunxiao-worklog/main/yunxiao-worklog.user.js
-// @downloadURL  https://raw.githubusercontent.com/ip18838237722-jpg/yunxiao-worklog/main/yunxiao-worklog.user.js
+// @updateURL    https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js
 // ==/UserScript==
 
 /* 由 tools/build-userscript.py 从 Chrome 扩展源码生成，请勿直接编辑。

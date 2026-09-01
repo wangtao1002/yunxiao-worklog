@@ -53,26 +53,38 @@
 
 > 升级：`git pull` 之后回到 `chrome://extensions` 点插件卡片上的刷新按钮，再刷新云效页面。
 
-### 方式二：油猴脚本（Tampermonkey）
+### 方式二：油猴脚本（Tampermonkey）—— 装一次，之后自动更新
 
-同一套源码也能打成一个用户脚本，**装一次之后自动更新**——你推一版，用的人无感升级，不用再发压缩包。
+**安装地址**（点开油猴会自动弹出安装页）：
 
-```bash
-python3 tools/build-userscript.py --host http://你的服务器/放脚本的目录
-```
+<https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js>
 
-产出 `云效工时统计-vX.Y.Z.user.js`（单文件，约 340 KB），扔到那个目录下即可。使用者：
+使用者：
 
 1. 装 [Tampermonkey](https://www.tampermonkey.net/)（Chrome 应用商店，免费）
 2. `chrome://extensions` 打开**开发者模式**
 3. 进 **Tampermonkey 的详情页**，再单独打开 **「允许用户脚本」** 开关
    （Chrome 138 起新增的独立权限，只开开发者模式不够，卡在这一步的人最多）
-4. 点脚本的 URL，油猴会弹出安装页，点「安装」
+4. 点上面那个安装地址，油猴会弹出安装页，点「安装」
 5. 刷新云效页面
 
 之后每次更新，油猴按 `@updateURL` 自动检查，不用再管。
 
-> 不带 `--host` 也能构建，只是没有自动更新——那样还不如用扩展版。
+#### 发版（维护者）
+
+```bash
+python3 tools/build-userscript.py --host "https://cdn.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main"
+git commit -am "chore: 发布 vX.Y.Z" && git push
+curl -s "https://purge.jsdelivr.net/gh/ip18838237722-jpg/yunxiao-worklog@main/yunxiao-worklog.user.js"   # 刷 CDN 缓存
+```
+
+改代码请改 `src/`，`.user.js` 是构建产物，别直接编辑。版本号从 `manifest.json` 读，
+油猴靠 `@version` 判断要不要更新——**发版前记得把 manifest 的版本号加上去**。
+
+> **为什么走 jsDelivr 而不是 `raw.githubusercontent.com`**：后者在国内经常连不上
+> （实测本机直接超时），而它正是 `@updateURL` 要访问的地址——拉不到就静默不更新，
+> 用的人会一直停在老版本还不知道。jsDelivr 是 GitHub 的 CDN 镜像，内容一样，国内可达性好得多。
+> 代价是有约 12 小时的缓存，发版后用上面那条 `purge` 立刻刷掉。
 
 **两个版本功能完全一致**，差别只在这几处：
 
