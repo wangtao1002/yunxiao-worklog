@@ -203,6 +203,8 @@ YXWT.detect = {
 YXWT.stats = {
   normalize(items, fieldMap, opts),  // opts:{dateBasis, excludeCancelled}
   summarize(rows),
+  filterByTaskScope(rows, scope),    // scope:'all'|'completed'
+  workHoursTotal(rows, basis),       // basis:'max'|'estimated'|'actual'
   groupBy(rows, key),
   byDay(rows, startYMD, endYMD, opts),
   byMember(rows),
@@ -307,8 +309,8 @@ YXWT.panel = { toggle(), open(), close(), isOpen() };
 - 「刷新」按钮 + 加载进度文案
 
 **概览卡**：第一行是任务数 / 预计工时 / 实际工时 / 偏差 / 日均工时 / 逾期率等常规统计。
-第二行固定从工作日总工时开始，紧跟“实际 − 工作日总工时”的工时偏差，所有时间范围都显示；
-本周、本月再追加截止今日工时，以及“实际 − 截止今日工时”的偏差。两种目标偏差均为正数红色、负数绿色，0 使用普通颜色。
+第二行固定从工作日总工时开始，紧跟“所选达标工时 − 工作日总工时”的工时偏差，所有时间范围都显示；
+本周、本月再追加截止今日工时，以及“所选达标工时 − 截止今日工时”的偏差。两种目标偏差均为正数红色、负数绿色，0 使用普通颜色。
 原偏差为负显示绿色，正显示橙色；逾期率 >20% 显示红色。
 
 **未填预计工时告警**（`prefs.warnMissingEst`，默认开）：判据 `isMissingEst` = 未取消且 `est <= 0`

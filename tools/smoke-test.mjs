@@ -275,6 +275,8 @@ ok('panel 任务状态范围统一作用于概览、日历、分组和明细',
   panelSource.includes('function taskScopeRows()') &&
   panelSource.includes('NS.stats.byDay(taskScopeRows(), state.start, state.end') &&
   panelSource.includes('return taskScopeRows().filter(function (r)'));
+ok('panel 任务状态范围不改变已编辑任务的待提交写回清单',
+  /function changedList\(\) \{[\s\S]{0,160}state\.rows\.forEach/.test(panelSource));
 ok('panel 截止今日两卡只对本周、本月显示',
   panelSource.includes("state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek'"));
 ok('panel 截止今日偏差与工时偏差走同一套渲染，颜色规则一致',

@@ -1286,14 +1286,9 @@
     renderTable();
   }
 
-  /** 设置里的任务状态范围统一作用于概览、日历、分组、明细和写入操作。 */
+  /** 设置里的任务状态范围统一作用于概览、日历、分组和明细。 */
   function taskScopeRows() {
-    if (NS.stats && typeof NS.stats.filterByTaskScope === 'function') {
-      return NS.stats.filterByTaskScope(state.rows, taskScope());
-    }
-    return taskScope() === 'completed'
-      ? state.rows.filter(function (r) { return !!(r && r.isDone); })
-      : state.rows.slice();
+    return NS.stats.filterByTaskScope(state.rows, taskScope());
   }
 
   /** 当前明细表可见的行（任务状态范围 + 搜索 + 选中某天 + 只看未填） */
@@ -2053,7 +2048,7 @@
 
   function changedList() {
     const out = [];
-    taskScopeRows().forEach(function (r) {
+    state.rows.forEach(function (r) {
       const e = editsOf(r);
       if (!e) return;
       EDITABLE.forEach(function (x) {
