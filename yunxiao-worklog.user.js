@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云效工时统计
 // @namespace    https://devops.aliyun.com/
-// @version      0.1.8
+// @version      0.2.0
 // @description  在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。
 // @author       abner
 // @license      MIT
@@ -21,8 +21,8 @@
   'use strict';
 
   window.YXWT = window.YXWT || {};
-  window.YXWT.__version = "0.1.8";
-  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>打开面板时默认选中的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填预计工时提醒<small>统计范围里没填「预计工时」的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填预计工时的任务<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n<\/body><\/html>";
+  window.YXWT.__version = "0.2.0";
+  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填预计工时提醒<small>统计范围里没填「预计工时」的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填预计工时的任务<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
 
   // ---- options.js（原文照搬，只把 window / document 从全局改成形参）----
   window.YXWT.__optionsApp = function (window, document) {
@@ -30,6 +30,7 @@
   'use strict';
 
   const store = window.YXWT && window.YXWT.store;
+  const summaryItems = window.YXWT && window.YXWT.summaryItems;
 
   const YX_PREFIX = 'https://devops.aliyun.com/';
   const YX_MATCH = 'https://devops.aliyun.com/*';
@@ -255,6 +256,49 @@
     $('live-warn').hidden = !!dryRun;
   }
 
+  function renderSummaryBarItems(prefs) {
+    const p = prefs || {};
+    const box = $('summaryBarItems');
+    if (!box || !summaryItems) return;
+    box.textContent = '';
+
+    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange);
+    const chosen = Object.create(null);
+    selected.forEach(function (key) { chosen[key] = true; });
+
+    summaryItems.available(p.defaultRange).forEach(function (item) {
+      const input = el('input', { type: 'checkbox', value: item.key });
+      input.checked = !!chosen[item.key];
+      const fixed = item.key === 'range' && selected.length > 0;
+      input.disabled = fixed;
+
+      const label = el('label', { class: 'metric-pick' + (input.checked ? ' on' : '') + (fixed ? ' fixed' : '') });
+      label.appendChild(input);
+      label.appendChild(el('span', { text: item.label }));
+      if (fixed) label.appendChild(el('span', { class: 'required', text: '必显' }));
+      box.appendChild(label);
+
+      input.addEventListener('change', function () {
+        const values = [];
+        const nodes = box.querySelectorAll('input[type="checkbox"]');
+        for (let i = 0; i < nodes.length; i++) if (nodes[i].checked) values.push(nodes[i].value);
+        const next = summaryItems.normalize(values, p.defaultRange);
+        savePrefs({ summaryBarItems: next }).then(function (cfg) {
+          renderSummaryBarItems((cfg || state.cfg).prefs);
+        });
+      });
+    });
+
+    const reset = $('summaryBarItemsReset');
+    const note = $('summaryBarItemsNote');
+    if (reset) reset.hidden = selected.length === 0;
+    if (note) {
+      note.textContent = selected.length
+        ? '已自定义显示 ' + selected.length + ' 项；范围为必显项。'
+        : '未选择：沿用范围、条数、预计、实际、偏差等当前样式。';
+    }
+  }
+
   function fillGeneral(cfg) {
     const p = cfg.prefs;
     $('dailyTargetHours').value = String(p.dailyTargetHours);
@@ -264,6 +308,7 @@
     $('excludeCancelled').checked = !!p.excludeCancelled;
     $('warnMissingEst').checked = p.warnMissingEst !== false;
     $('showSummaryBar').checked = !!p.showSummaryBar;
+    renderSummaryBarItems(p);
     setWriteMode(p.dryRun !== false);
   }
 
@@ -285,7 +330,18 @@
       savePrefs({ dateBasis: this.value });
     });
     $('defaultRange').addEventListener('change', function () {
-      savePrefs({ defaultRange: this.value });
+      const select = this;
+      const before = state.cfg && state.cfg.prefs ? state.cfg.prefs : {};
+      const nextItems = summaryItems.normalize(before.summaryBarItems, select.value);
+      savePrefs({ defaultRange: select.value, summaryBarItems: nextItems }).then(function (cfg) {
+        if (!cfg) select.value = before.defaultRange || 'thisWeek';
+        renderSummaryBarItems((cfg || state.cfg).prefs);
+      });
+    });
+    $('summaryBarItemsReset').addEventListener('click', function () {
+      savePrefs({ summaryBarItems: [] }).then(function (cfg) {
+        renderSummaryBarItems((cfg || state.cfg).prefs);
+      });
     });
     $('theme').addEventListener('change', function () {
       applyTheme(this.value);
@@ -703,8 +759,8 @@
     fillSelect($('defaultRange'), RANGE_OPTIONS);
     fillSelect($('theme'), THEME_OPTIONS);
 
-    if (!store) {
-      fatal('本地存储模块加载失败，设置页无法工作。请在 chrome://extensions 里重新加载本插件。');
+    if (!store || !summaryItems) {
+      fatal('本地设置模块加载失败，设置页无法工作。请在 chrome://extensions 里重新加载本插件。');
       return;
     }
 
@@ -1272,6 +1328,59 @@
 })();
 
 
+  /* ================= src/summary-items.js ================= */
+/**
+ * YXWT.summaryItems —— 悬浮统计可显示的概览指标目录与时间范围过滤规则。
+ * 纯逻辑模块：设置页和悬浮条共用，避免两边各维护一份后逐渐不一致。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+  const CURRENT_RANGES = { thisWeek: true, thisMonth: true };
+  const ITEMS = [
+    { key: 'range', label: '范围', shortLabel: '范围' },
+    { key: 'count', label: '任务数', shortLabel: '条数' },
+    { key: 'estimated', label: '预计工时', shortLabel: '预计' },
+    { key: 'actual', label: '实际工时', shortLabel: '实际' },
+    { key: 'diff', label: '偏差', shortLabel: '偏差' },
+    { key: 'avgPerDay', label: '日均工时', shortLabel: '日均' },
+    { key: 'overdueRate', label: '逾期率', shortLabel: '逾期率' },
+    { key: 'missingEst', label: '未填预计', shortLabel: '未填预计' },
+    { key: 'workdayTotal', label: '工作日总工时', shortLabel: '工作日总工时' },
+    { key: 'workdayDiff', label: '工时偏差', shortLabel: '工时偏差' },
+    { key: 'throughToday', label: '截止今日工时', shortLabel: '截止今日工时', currentOnly: true },
+    { key: 'throughTodayDiff', label: '截止今日工时偏差', shortLabel: '截止今日工时偏差', currentOnly: true }
+  ];
+
+  function available(rangeKey) {
+    const current = !!CURRENT_RANGES[String(rangeKey || '')];
+    return ITEMS.filter(function (item) { return !item.currentOnly || current; });
+  }
+
+  /**
+   * 空数组表示兼容旧版默认显示；非空数组表示自定义显示，并强制包含 range。
+   * 返回值按指标目录排序、去重，同时剔除当前时间范围不存在的指标。
+   */
+  function normalize(value, rangeKey) {
+    if (!Array.isArray(value) || !value.length) return [];
+    const picked = Object.create(null);
+    value.forEach(function (key) { picked[String(key || '')] = true; });
+    const list = available(rangeKey).filter(function (item) { return !!picked[item.key]; })
+      .map(function (item) { return item.key; });
+    if (!list.length) return [];
+    if (list.indexOf('range') < 0) list.unshift('range');
+    return list;
+  }
+
+  NS.summaryItems = {
+    all: ITEMS.slice(),
+    available: available,
+    normalize: normalize
+  };
+})();
+
+
   /* ================= src/store.js ================= */
 /**
  * YXWT.store —— chrome.storage.local 封装（SPEC 第 2 节）
@@ -1292,10 +1401,14 @@
     context: null,       // 最后一次成功识别的身份，仅在推不出当前组织时作降级回退
     // 团队视图里额外纳入的 userId，同样必须按组织分桶：userId 只在本组织有意义
     membersByOrg: {},    // { [orgId]: [userId] }
+    // 按“组织 + 成员 + 口径 + 起止日期”保存的统计快照。只留最近 12 份，避免撑爆 storage.local。
+    rangeSnapshots: {},  // { [cacheKey]: {savedAt, rows, ...} }
     prefs: {
       dailyTargetHours: 8,
       dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
       defaultRange: 'thisWeek',
+      // 空数组保持旧版悬浮条样式；非空时按所选概览指标显示，range 由 summaryItems 强制保留。
+      summaryBarItems: [],
       members: [],               // 【已废弃】旧的扁平成员数组，仅用于一次性迁移到 membersByOrg
       includeSelf: true,         // 统计里是否包含自己（想「只看某个同事」时可以关掉）
       showSummaryBar: true,
@@ -1745,6 +1858,81 @@
     });
   }
 
+  function getRangeSnapshot(cacheKey) {
+    const key = String(cacheKey || '');
+    if (!key) return Promise.resolve(null);
+    return get().then(function (cfg) {
+      const hit = cfg.rangeSnapshots[key];
+      return isPlainObject(hit) ? clone(hit) : null;
+    });
+  }
+
+  function setRangeSnapshot(cacheKey, snapshot) {
+    const key = String(cacheKey || '');
+    if (!key || !isPlainObject(snapshot)) return Promise.resolve(null);
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const all = clone(cfg.rangeSnapshots);
+        const next = clone(snapshot);
+        next.savedAt = typeof next.savedAt === 'number' ? next.savedAt : Date.now();
+        all[key] = next;
+
+        const keys = Object.keys(all).sort(function (a, b) {
+          return (Number(all[b] && all[b].savedAt) || 0) - (Number(all[a] && all[a].savedAt) || 0);
+        });
+        keys.slice(12).forEach(function (oldKey) { delete all[oldKey]; });
+
+        return rawSet({ rangeSnapshots: all }).then(function () { return clone(next); });
+      });
+    });
+  }
+
+  /**
+   * 写回云效成功后，把已知的新工时同步进所有命中该工作项的本地快照。
+   * 不改 savedAt：它表示整段数据最后一次从云效完整拉取的时间，不能被一次局部写回冒充成全量刷新。
+   */
+  function patchRangeSnapshots(patches) {
+    const byId = {};
+    (Array.isArray(patches) ? patches : []).forEach(function (patch) {
+      const id = String(patch && patch.id || '');
+      if (!id) return;
+      const next = byId[id] || (byId[id] = { id: id });
+      if (Object.prototype.hasOwnProperty.call(patch, 'est')) next.est = Number(patch.est) || 0;
+      if (Object.prototype.hasOwnProperty.call(patch, 'act')) next.act = Number(patch.act) || 0;
+    });
+    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0 });
+
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const all = clone(cfg.rangeSnapshots);
+        let snapshotCount = 0;
+        let rowCount = 0;
+
+        Object.keys(all).forEach(function (key) {
+          const snapshot = all[key];
+          if (!snapshot || !Array.isArray(snapshot.rows)) return;
+          let touched = false;
+          snapshot.rows.forEach(function (row) {
+            const patch = byId[String(row && row.id || '')];
+            if (!patch) return;
+            if (Object.prototype.hasOwnProperty.call(patch, 'est')) row.est = patch.est;
+            if (Object.prototype.hasOwnProperty.call(patch, 'act')) row.act = patch.act;
+            touched = true;
+            rowCount++;
+          });
+          if (touched) snapshotCount++;
+        });
+
+        if (!snapshotCount) return { snapshots: 0, rows: 0 };
+        return rawSet({ rangeSnapshots: all }).then(function () {
+          return { snapshots: snapshotCount, rows: rowCount };
+        });
+      });
+    });
+  }
+
   /**
    * 监听本地配置变化。cb(cfg, changes)，cfg 是合并后的完整配置。
    * 返回取消监听的函数。
@@ -1800,6 +1988,9 @@
     getContacts: getContacts,
     addContacts: addContacts,
     removeContact: removeContact,
+    getRangeSnapshot: getRangeSnapshot,
+    setRangeSnapshot: setRangeSnapshot,
+    patchRangeSnapshots: patchRangeSnapshots,
     onChange: onChange,
     clear: clear
   };
@@ -3740,13 +3931,15 @@
       const d = parseYMD(ymd);
       const dow = d ? d.getDay() : 0;
       const weekend = isWeekendYMD(ymd);
-      const dayTarget = weekend ? 0 : target;
+      const workday = typeof o.isWorkday === 'function' ? o.isWorkday(ymd) !== false : !weekend;
+      const dayTarget = workday ? target : 0;
       const est = round2(b.est);
       return {
         ymd: ymd,
         dow: dow,
         weekday: WEEKDAY_LABELS[dow],
         isWeekend: weekend,
+        isWorkday: workday,
         count: b.count,
         est: est,
         act: round2(b.act),
@@ -4050,6 +4243,374 @@
  *   含逗号/引号/换行/首尾空白的字段用双引号包裹且内部引号翻倍；以 = + - @ 开头的文本前置单引号，
  *   防 Excel 公式注入（数值列不做此处理，避免负数被改写）。
  */
+
+
+  /* ================= src/workcalendar.js ================= */
+/**
+ * YXWT.workcalendar —— 中国大陆法定节假日 / 调休补班日历（纯本地数据）。
+ *
+ * 数据来自国务院年度放假通知，由 holiday-cn 的年度 JSON 交叉整理：
+ * https://github.com/NateScarlet/holiday-cn
+ * 这里只保存会改变“周一至周五”默认规则的日期，不会在运行时请求第三方网站。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+  const U = NS.util;
+
+  const CALENDAR = {
+    2023: {
+      paper: 'http://www.gov.cn/zhengce/zhengceku/2022-12/08/content_5730844.htm',
+      off: '2022-12-31,2023-01-01,2023-01-02,2023-01-21,2023-01-22,2023-01-23,2023-01-24,2023-01-25,2023-01-26,2023-01-27,2023-04-05,2023-04-29,2023-04-30,2023-05-01,2023-05-02,2023-05-03,2023-06-22,2023-06-23,2023-06-24,2023-09-29,2023-09-30,2023-10-01,2023-10-02,2023-10-03,2023-10-04,2023-10-05,2023-10-06',
+      work: '2023-01-28,2023-01-29,2023-04-23,2023-05-06,2023-06-25,2023-10-07,2023-10-08'
+    },
+    2024: {
+      paper: 'https://www.gov.cn/zhengce/zhengceku/202310/content_6911528.htm',
+      off: '2024-01-01,2024-02-10,2024-02-11,2024-02-12,2024-02-13,2024-02-14,2024-02-15,2024-02-16,2024-02-17,2024-04-04,2024-04-05,2024-04-06,2024-05-01,2024-05-02,2024-05-03,2024-05-04,2024-05-05,2024-06-10,2024-09-15,2024-09-16,2024-09-17,2024-10-01,2024-10-02,2024-10-03,2024-10-04,2024-10-05,2024-10-06,2024-10-07',
+      work: '2024-02-04,2024-02-18,2024-04-07,2024-04-28,2024-05-11,2024-09-14,2024-09-29,2024-10-12'
+    },
+    2025: {
+      paper: 'https://www.gov.cn/zhengce/zhengceku/202411/content_6986383.htm',
+      off: '2025-01-01,2025-01-28,2025-01-29,2025-01-30,2025-01-31,2025-02-01,2025-02-02,2025-02-03,2025-02-04,2025-04-04,2025-04-05,2025-04-06,2025-05-01,2025-05-02,2025-05-03,2025-05-04,2025-05-05,2025-05-31,2025-06-01,2025-06-02,2025-10-01,2025-10-02,2025-10-03,2025-10-04,2025-10-05,2025-10-06,2025-10-07,2025-10-08',
+      work: '2025-01-26,2025-02-08,2025-04-27,2025-09-28,2025-10-11'
+    },
+    2026: {
+      paper: 'https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm',
+      off: '2026-01-01,2026-01-02,2026-01-03,2026-02-15,2026-02-16,2026-02-17,2026-02-18,2026-02-19,2026-02-20,2026-02-21,2026-02-22,2026-02-23,2026-04-04,2026-04-05,2026-04-06,2026-05-01,2026-05-02,2026-05-03,2026-05-04,2026-05-05,2026-06-19,2026-06-20,2026-06-21,2026-09-25,2026-09-26,2026-09-27,2026-10-01,2026-10-02,2026-10-03,2026-10-04,2026-10-05,2026-10-06,2026-10-07',
+      work: '2026-01-04,2026-02-14,2026-02-28,2026-05-09,2026-09-20,2026-10-10'
+    }
+  };
+
+  const INDEX = {};
+  Object.keys(CALENDAR).forEach(function (year) {
+    const src = CALENDAR[year];
+    const dates = {};
+    String(src.off || '').split(',').filter(Boolean).forEach(function (d) { dates[d] = false; });
+    String(src.work || '').split(',').filter(Boolean).forEach(function (d) { dates[d] = true; });
+    INDEX[year] = dates;
+  });
+
+  function classify(ymd) {
+    const day = U && U.toYMD ? U.toYMD(ymd) : String(ymd || '').slice(0, 10);
+    const year = day ? day.slice(0, 4) : '';
+    const dates = INDEX[year];
+    if (dates && Object.prototype.hasOwnProperty.call(dates, day)) {
+      return { workday: dates[day], supported: true, adjusted: true };
+    }
+    const d = U && U.parseYMD ? U.parseYMD(day) : null;
+    const dow = d ? d.getDay() : -1;
+    return {
+      workday: dow >= 1 && dow <= 5,
+      supported: !!dates,
+      adjusted: false
+    };
+  }
+
+  function summarize(start, end, dailyHours, memberCount) {
+    const days = U && U.daysBetween ? U.daysBetween(start, end) : [];
+    const unsupported = {};
+    let workdays = 0;
+    days.forEach(function (ymd) {
+      const c = classify(ymd);
+      if (c.workday) workdays++;
+      if (!c.supported) unsupported[ymd.slice(0, 4)] = true;
+    });
+    const perDay = Math.max(0, Number(dailyHours) || 0);
+    const people = Math.max(1, Math.floor(Number(memberCount) || 1));
+    return {
+      workdays: workdays,
+      hours: workdays * perDay * people,
+      dailyHours: perDay,
+      memberCount: people,
+      unsupportedYears: Object.keys(unsupported).sort(),
+      days: days.length
+    };
+  }
+
+  NS.workcalendar = {
+    supportedYears: Object.keys(CALENDAR).map(Number).sort(),
+    classify: classify,
+    summarize: summarize
+  };
+})();
+
+
+  /* ================= src/range-data.js ================= */
+/**
+ * YXWT.rangeData —— 面板与悬浮统计共用的“精确日期区间”加载和本地快照。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+  const U = NS.util;
+  const CONCURRENCY = 3;
+  const FINISH_PAD_DAYS = 90;
+  const dailyInFlight = Object.create(null);
+
+  function fieldError(message) {
+    const e = new Error(message);
+    e.__yxwtField = true;
+    return e;
+  }
+
+  function errText(e) {
+    const raw = e && e.message ? String(e.message) : String(e || '未知错误');
+    return raw === 'YXWT_NOT_LOGGED_IN' ? '未登录云效或登录已过期' : raw;
+  }
+
+  function rangeFromPrefs(prefs) {
+    const key = (prefs && prefs.defaultRange) || 'thisWeek';
+    const presets = U.rangePresets();
+    let picked = presets.filter(function (p) { return p.key === key; })[0];
+    if (!picked) picked = presets[2];
+    return { key: picked.key, label: picked.label, start: picked.start, end: picked.end };
+  }
+
+  function currentMonthRange() {
+    const presets = U.rangePresets();
+    const picked = presets.filter(function (p) { return p.key === 'thisMonth'; })[0];
+    return { key: picked.key, label: picked.label, start: picked.start, end: picked.end };
+  }
+
+  function localDayKey(value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (!d || !isFinite(d.getTime())) return '';
+    const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  }
+
+  function isSameLocalDay(a, b) {
+    const ak = localDayKey(a);
+    return !!ak && ak === localDayKey(b);
+  }
+
+  async function resolve(prefs) {
+    const ctx = await NS.detect.context();
+    const orgId = String((ctx && ctx.orgId) || '');
+    const memberIds = orgId ? await NS.store.getMembers(orgId) : [];
+    const contacts = orgId ? await NS.store.getContacts(orgId) : {};
+    const fieldMap = await NS.detect.fieldMap();
+    if (!fieldMap) {
+      throw fieldError('没探测到工时字段：云效里至少要有一个工作项，也可以到设置页手动指定字段 identifier。');
+    }
+
+    const missing = [];
+    if (!fieldMap.estimated || !fieldMap.estimated.id) missing.push('预计工时');
+    if (!fieldMap.actual || !fieldMap.actual.id) missing.push('实际工时');
+    const fieldWarn = missing.length
+      ? '未识别到「' + missing.join('」「') + '」字段，相关数字按 0 计算。可到设置页手动指定字段 identifier。'
+      : '';
+
+    const meId = String((ctx && ctx.userId) || '');
+    if (!meId) throw new Error('未取到当前用户');
+    let includeSelf = !prefs || prefs.includeSelf !== false;
+    const members = [];
+    if (includeSelf) members.push({ id: meId, name: (ctx && ctx.name) || '我', self: true });
+    (memberIds || []).forEach(function (id) {
+      const uid = String(id || '');
+      if (!uid || uid === meId) return;
+      const c = contacts[uid] || {};
+      members.push({ id: uid, name: c.name || uid });
+    });
+    // 本地状态如果意外变成“不含自己 + 没有同事”，兜回只看自己，避免发出空成员查询。
+    if (!members.length) {
+      includeSelf = true;
+      members.push({ id: meId, name: (ctx && ctx.name) || '我', self: true });
+    }
+
+    return {
+      ctx: ctx,
+      prefs: prefs || {},
+      includeSelf: includeSelf,
+      memberIds: (memberIds || []).map(String),
+      contacts: contacts || {},
+      fieldMap: fieldMap,
+      fieldWarn: fieldWarn,
+      members: members
+    };
+  }
+
+  function dateField(scope, dateBasis) {
+    const basisKey = dateBasis === 'planStart' ? 'planStart' : 'planEnd';
+    const field = scope && scope.fieldMap && scope.fieldMap[basisKey];
+    if (!field || !field.id) {
+      throw fieldError('没识别到「' + (basisKey === 'planStart' ? '计划开始时间' : '计划完成时间') + '」字段，请到设置页手动指定后重试。');
+    }
+    return field;
+  }
+
+  function cacheKey(scope, opts) {
+    const o = opts || {};
+    const fm = (scope && scope.fieldMap) || {};
+    const fieldSig = ['estimated', 'actual', 'planStart', 'planEnd'].map(function (k) {
+      return String((fm[k] && fm[k].id) || '');
+    }).join(',');
+    const members = ((scope && scope.members) || []).map(function (m) { return String(m.id); }).sort();
+    return [
+      'v1',
+      String(scope && scope.ctx && scope.ctx.orgId || ''),
+      members.join(','),
+      String(o.dateBasis || 'planEnd'),
+      String(o.start || ''),
+      String(o.end || ''),
+      o.excludeCancelled === false ? '0' : '1',
+      fieldSig
+    ].join('|');
+  }
+
+  async function readSnapshot(scope, opts) {
+    dateField(scope, opts && opts.dateBasis);
+    const key = cacheKey(scope, opts);
+    const hit = await NS.store.getRangeSnapshot(key);
+    if (!hit || !Array.isArray(hit.rows)) return null;
+    hit.cacheKey = key;
+    return hit;
+  }
+
+  async function fetchSnapshot(scope, opts) {
+    const o = opts || {};
+    const start = String(o.start || '');
+    const end = String(o.end || '');
+    const dateBasis = o.dateBasis || 'planEnd';
+    if (!start || !end || start > end) throw new Error('统计日期范围无效');
+    const field = dateField(scope, dateBasis);
+
+    let qStart = start;
+    let qEnd = end;
+    if (dateBasis === 'finishTime') {
+      qStart = U.toYMD(U.addDays(U.parseYMD(start), -FINISH_PAD_DAYS)) || start;
+      qEnd = U.toYMD(U.addDays(U.parseYMD(end), FINISH_PAD_DAYS)) || end;
+    }
+
+    const members = scope.members || [];
+    const loadedBy = {};
+    const progress = function (done) {
+      if (typeof o.onProgress !== 'function') return;
+      let loaded = 0;
+      Object.keys(loadedBy).forEach(function (id) { loaded += loadedBy[id] || 0; });
+      o.onProgress({ done: done, total: members.length, loaded: loaded });
+    };
+    let done = 0;
+    progress(done);
+
+    const results = await U.pmap(members, function (m) {
+      return NS.api.listWorkitems({
+        spaceType: 'User',
+        spaceIdentifier: m.id,
+        scope: 'personal',
+        category: '',
+        conditionGroups: [[
+          NS.api.cond.user('assignedTo', [m.id]),
+          NS.api.cond.dateBetween(field.id, qStart, qEnd)
+        ]],
+        orderBy: { fieldIdentifier: field.id, order: 'desc', className: 'date', format: 'input' },
+        pageSize: 200,
+        maxPages: 20,
+        onProgress: function (loaded) {
+          loadedBy[m.id] = loaded || 0;
+          progress(done);
+        }
+      }).then(function (res) {
+        done++;
+        progress(done);
+        return res;
+      });
+    }, CONCURRENCY);
+
+    const items = [];
+    const seen = {};
+    const memberErrors = [];
+    let truncated = false;
+    results.forEach(function (r, i) {
+      if (!r || r.__error) {
+        memberErrors.push({ name: members[i].name, error: errText(r && r.__error ? { message: r.__error } : null) });
+        return;
+      }
+      if (r.truncated) truncated = true;
+      (r.items || []).forEach(function (it) {
+        const id = it && it.identifier;
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        items.push(it);
+      });
+    });
+    if (memberErrors.length && memberErrors.length === members.length) {
+      throw new Error(memberErrors[0].error);
+    }
+
+    let rows = NS.stats.normalize(items, scope.fieldMap, {
+      dateBasis: dateBasis,
+      excludeCancelled: o.excludeCancelled !== false
+    }) || [];
+    if (dateBasis === 'finishTime') {
+      rows = rows.filter(function (r) { return r.date && r.date >= start && r.date <= end; });
+    }
+
+    const snapshot = {
+      savedAt: isFinite(Number(o.now)) ? Number(o.now) : Date.now(),
+      start: start,
+      end: end,
+      dateBasis: dateBasis,
+      rows: rows,
+      truncated: truncated,
+      memberErrors: memberErrors
+    };
+    const key = cacheKey(scope, o);
+    await NS.store.setRangeSnapshot(key, snapshot);
+    snapshot.cacheKey = key;
+    return snapshot;
+  }
+
+  /**
+   * 每个“组织 + 成员 + 口径”的本月快照每天最多自动全量刷新一次。
+   * 失败时保留旧快照，让调用方决定是继续显示旧数据还是报错；同页并发调用共用同一个 Promise。
+   */
+  function refreshThisMonthIfNeeded(scope, prefs, options) {
+    const o = options || {};
+    const range = currentMonthRange();
+    const query = {
+      start: range.start,
+      end: range.end,
+      dateBasis: (prefs && prefs.dateBasis) || 'planEnd',
+      excludeCancelled: !prefs || prefs.excludeCancelled !== false
+    };
+    const key = cacheKey(scope, query);
+    if (dailyInFlight[key]) return dailyInFlight[key];
+
+    const now = isFinite(Number(o.now)) ? Number(o.now) : Date.now();
+    const task = readSnapshot(scope, query).then(function (hit) {
+      if (hit && isSameLocalDay(hit.savedAt, now)) {
+        return { range: range, query: query, snapshot: hit, refreshed: false, error: null };
+      }
+      return fetchSnapshot(scope, Object.assign({}, query, {
+        now: now,
+        onProgress: o.onProgress
+      })).then(function (snapshot) {
+        return { range: range, query: query, snapshot: snapshot, refreshed: true, error: null };
+      }, function (error) {
+        return { range: range, query: query, snapshot: hit || null, refreshed: false, error: error };
+      });
+    });
+
+    dailyInFlight[key] = task;
+    task.then(function () { delete dailyInFlight[key]; }, function () { delete dailyInFlight[key]; });
+    return task;
+  }
+
+  NS.rangeData = {
+    FINISH_PAD_DAYS: FINISH_PAD_DAYS,
+    rangeFromPrefs: rangeFromPrefs,
+    currentMonthRange: currentMonthRange,
+    isSameLocalDay: isSameLocalDay,
+    resolve: resolve,
+    cacheKey: cacheKey,
+    readSnapshot: readSnapshot,
+    fetchSnapshot: fetchSnapshot,
+    refreshThisMonthIfNeeded: refreshThisMonthIfNeeded
+  };
+})();
 
 
   /* ================= src/ui.js ================= */
@@ -4462,10 +5023,11 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .yx-dlg{
   width:min(560px,100%);max-height:calc(100vh - 96px);
   display:flex;flex-direction:column;
+  color:var(--yx-text);
   background:var(--yx-surface);border:1px solid var(--yx-border);border-radius:12px;
   box-shadow:var(--yx-shadow-lg);animation:yx-pop .16s cubic-bezier(.2,.8,.3,1);
 }
-.yx-dlg-h{display:flex;align-items:center;gap:8px;padding:15px 18px 0;font-size:15px;font-weight:650;}
+.yx-dlg-h{display:flex;align-items:center;gap:8px;padding:15px 18px 0;font-size:15px;font-weight:650;color:var(--yx-text);}
 .yx-dlg.is-danger .yx-dlg-h .yx-ico{color:var(--yx-danger);}
 .yx-dlg-b{padding:9px 18px 2px;overflow:auto;font-size:13px;line-height:1.65;color:var(--yx-text-dim);
   white-space:pre-wrap;word-break:break-word;}
@@ -4996,7 +5558,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
   /* ================= src/panel.js ================= */
 /**
  * YXWT.panel —— 主面板：顶栏 / 筛选 / 概览卡 / 日历热力图 / 分组统计 / 明细表 / 底部工具条。
- * 依赖（均在本文件之前加载）：util、store、api、detect、stats、ui。
+ * 依赖（均在本文件之前加载）：util、store、api、detect、stats、workcalendar、rangeData、ui。
  * 除 util 外一律在调用时才取 NS.xxx，避免某个模块加载失败时本文件在初始化阶段就炸掉。
  */
 (function () {
@@ -5006,8 +5568,6 @@ button,input,select,textarea{font:inherit;color:inherit;}
   const U = NS.util;
 
   const HOST_ID = 'yxwt-panel';
-  const CONCURRENCY = 3;          // 按成员并发上限，SPEC 7 规定
-  const FINISH_PAD_DAYS = 90;     // finishTime 口径下 planEnd 区间左右各扩的天数
   const MAX_RENDER_ROWS = 500;    // 明细表一次最多渲染多少行，防止 DOM 爆炸
   const GROUP_TOP = 15;
 
@@ -5159,8 +5719,9 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '.yxp-sechead{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:13px;font-weight:600;}',
     '.yxp-sechead .yxp-sub{font-weight:400;color:var(--yxp-text-faint);font-size:12px;}',
     // 概览卡
-    // 卡片数量是动态的（多一张「未填预计」），写死 6 列会让第 7 张独占一行
-    '.yxp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;}',
+    // auto-fill 会保留空轨道，让常规统计和第二行工时目标卡始终等宽对齐
+    '.yxp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}',
+    '.yxp-workcards{margin-top:10px;}',
     '@media (max-width:1080px){.yxp-cards{grid-template-columns:repeat(3,minmax(0,1fr));}}',
     '@media (max-width:640px){.yxp-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}',
     '.yxp-cardbox{border:1px solid var(--yxp-border);border-radius:12px;padding:11px 12px;',
@@ -5291,9 +5852,12 @@ button,input,select,textarea{font:inherit;color:inherit;}
     includeSelf: true,      // 是否把自己算进统计。想「只看某个同事」就得能把自己摘掉
     memberOrgId: null,      // memberIds 当前对应的组织，换组织要重新读
     memberErrors: [],       // [{name, error}]
+    dailyError: '',         // 跨日自动刷新本月失败时保留旧快照，并在底部提示
     fieldWarn: '',          // 工时字段缺失的提示文案（缺 estimated / actual 时非空）
     pickerOpen: false,
     rows: [],
+    hasSnapshot: false,     // 当前精确区间是否已经加载并持久化
+    snapshotKey: '',
     truncated: false,
     // 编辑状态按「行 + 字段」两级存，只放真正改过的字段（详见 numCell / setEdit 附近的说明）
     edits: {},              // {rowId: {est?: 新预计工时, act?: 新实际工时}}
@@ -5399,6 +5963,14 @@ button,input,select,textarea{font:inherit;color:inherit;}
         const before = state.prefs || {};
         state.prefs = next;
         applyTheme();
+        if (before.defaultRange !== next.defaultRange) {
+          state.start = '';
+          state.end = '';
+          state.booted = false;
+          state.hasSnapshot = false;
+          if (state.open && !state.loading) load({ preferCache: true });
+          return;
+        }
         if (!state.open) return;
         if (before.dryRun !== next.dryRun) renderEditBar();
         if (before.dailyTargetHours !== next.dailyTargetHours && state.booted) renderCalendar();
@@ -5434,19 +6006,14 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.scrollLock = null;
   }
 
-  // 重开面板时数据多久算过期。统计工具最忌讳把旧数字当新的给人看：
-  // 用户在云效里改完任务再打开面板，看到没变的数字会以为改动没生效。
-  const STALE_MS = 2 * 60 * 1000;
-
   function open() {
     ensureMounted();
     if (state.open) return;
     state.open = true;
     refs.overlay.classList.remove('yxp-hidden');
     lockScroll();
-    const stale = !state.loadedAt || (Date.now() - state.loadedAt) > STALE_MS;
-    if ((!state.booted || stale) && !state.loading) {
-      load();
+    if (!state.booted && !state.loading) {
+      load({ preferCache: true });
     } else {
       // 重新打开时至少把 prefs 读新一遍，避免用的是上次打开时的写入模式
       ensureConfig().then(function () {
@@ -5555,7 +6122,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
         state.dayFilter = null;
         state.rangeError = '';
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       });
       b.title = p.start + ' ~ ' + p.end;
       add(group, b);
@@ -5591,7 +6158,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       state.dayFilter = null;
       NS.store.setPrefs({ dateBasis: sel.value }).catch(function () {});
       renderFilters();
-      load();
+      load({ cacheOnly: true });
     };
 
     const memberBox = el('div', 'yxp-memberbox yxp-frow');
@@ -5616,8 +6183,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
       refs.memberPickerScroll = 0;
     }
 
-    const refreshBtn = btn('yxp-btn', state.loading ? '加载中…' : '刷新', function () {
-      if (!state.loading) load();
+    const refreshBtn = btn('yxp-btn', state.loading ? '加载中…' : (state.hasSnapshot ? '刷新此区间' : '加载此区间'), function () {
+      if (!state.loading) load({ force: true });
     });
     refreshBtn.disabled = !!state.loading;
 
@@ -5650,7 +6217,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     // finishTime 口径的本地过滤提示（SPEC 7 明确要求这句文案）
     if (state.dateBasis === 'finishTime') {
       add(box, el('div', 'yxp-note',
-        '实际完成口径为本地过滤：先按「计划完成时间」拉取前后各 ' + FINISH_PAD_DAYS + ' 天的数据再按实际完成时间筛选，区间外的任务可能不全。'));
+        '实际完成口径为本地过滤：先按「计划完成时间」拉取前后各 ' + NS.rangeData.FINISH_PAD_DAYS + ' 天的数据再按实际完成时间筛选，区间外的任务可能不全。'));
     }
     restoreMemberPickerScroll();
     renderStatus();
@@ -5740,7 +6307,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       }),
       btn('yxp-btn ghost', '不含我', function () {
         if (!state.memberIds.length) {
@@ -5751,7 +6318,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
         saveMembers();
         invalidateMemberPicker();
         renderFilters();
-        load();
+        load({ cacheOnly: true });
       })
     );
     add(box, foot);
@@ -5798,7 +6365,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (!on && i >= 0) state.memberIds.splice(i, 1);
     saveMembers();
     refreshMemberSummary();
-    load();
+    load({ cacheOnly: true });
   }
 
   function onToggleSelf(on, cb) {
@@ -5810,7 +6377,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.includeSelf = !!on;
     saveMembers();
     refreshMemberSummary();
-    load();
+    load({ cacheOnly: true });
   }
 
   function onRemoveContact(id) {
@@ -5844,7 +6411,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.rangeKey = 'custom';
     state.dayFilter = null;
     renderFilters();
-    load();
+    load({ cacheOnly: true });
   }
 
   function renderStatus() {
@@ -5852,17 +6419,19 @@ button,input,select,textarea{font:inherit;color:inherit;}
     let txt = '';
     if (state.loading) {
       const p = state.progress;
-      if (p && p.total) txt = '加载中 ' + p.done + '/' + p.total + ' 位成员 · 已取 ' + p.loaded + ' 条';
+      if (p && p.total) txt = (p.label || '加载中') + ' ' + p.done + '/' + p.total + ' 位成员 · 已取 ' + p.loaded + ' 条';
       else txt = '正在识别身份与工时字段…';
     } else if (state.error) {
       txt = '';
+    } else if (state.booted && !state.hasSnapshot) {
+      txt = state.start + ' ~ ' + state.end + ' · 未加载';
     } else if (state.booted) {
       const bits = [state.start + ' ~ ' + state.end, '共 ' + state.rows.length + ' 条'];
       if (state.truncated) bits.push('已达分页上限，数据可能不全');
       if (state.loadedAt) {
         const d = new Date(state.loadedAt);
         const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-        bits.push('数据取自 ' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
+        bits.push('最后刷新 ' + U.toYMD(d) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
       }
       txt = bits.join(' · ');
     }
@@ -5875,8 +6444,9 @@ button,input,select,textarea{font:inherit;color:inherit;}
       if (state.memberErrors.length) {
         parts.push(state.memberErrors.length + ' 位成员加载失败，统计不含其数据（见上方提示）');
       }
+      if (state.dailyError) parts.push('本月自动刷新失败，当前显示上次快照：' + state.dailyError);
       refs.footStatus.textContent = parts.join(' · ');
-      refs.footStatus.className = 'yxp-status' + (state.memberErrors.length ? ' yxp-bad' : '');
+      refs.footStatus.className = 'yxp-status' + (state.memberErrors.length || state.dailyError ? ' yxp-bad' : '');
     }
   }
 
@@ -5905,44 +6475,18 @@ button,input,select,textarea{font:inherit;color:inherit;}
       state.end = p.end;
       state.dateBasis = state.prefs.dateBasis || 'planEnd';
     }
-    // members 按组织分桶（store.getMembers），要等 load() 里拿到 ctx.orgId 才能读，见 loadMembers()
-  }
-
-  /** 读当前组织的成员选择。换组织必须重读，否则 A 组织的 userId 会被拿去查 B 组织 */
-  async function loadMembers(orgId) {
-    const key = String(orgId || '');
-    if (state.memberOrgId === key) return;
-    state.memberOrgId = key;
-    try {
-      state.memberIds = (await NS.store.getMembers(key)) || [];
-    } catch (e) {
-      state.memberIds = [];
-    }
-    // includeSelf 是跨组织的，memberIds 是分组织的：换到一个没存过成员的组织时，
-    // 「不含我 + 没有同事」＝一个人都没有，查出来必然空表。这里兜回默认的「只看我」。
-    if (!state.includeSelf && !state.memberIds.length) state.includeSelf = true;
+    // 成员按组织分桶，在 rangeData.resolve() 识别组织后读取。
   }
 
   function saveMembers() {
     const orgId = state.ctx && state.ctx.orgId;
     if (!orgId) return;
-    NS.store.setMembers(orgId, state.memberIds.slice()).catch(function () {});
-    // includeSelf 不分组织：跨组织都是「这次想不想把自己算进去」，语义一致
-    NS.store.setPrefs({ includeSelf: !!state.includeSelf }).catch(function () {});
-  }
-
-  function memberList() {
-    const meId = state.ctx.userId;
-    const out = [];
-    if (state.includeSelf) {
-      out.push({ id: meId, name: state.ctx.name || '我', self: true });
-    }
-    state.memberIds.forEach(function (id) {
-      if (!id || id === meId) return;
-      const c = state.contacts[id];
-      out.push({ id: id, name: (c && c.name) || id });
-    });
-    return out;
+    Promise.all([
+      NS.store.setMembers(orgId, state.memberIds.slice()),
+      NS.store.setPrefs({ includeSelf: !!state.includeSelf })
+    ]).then(function () {
+      if (NS.summarybar && typeof NS.summarybar.refresh === 'function') NS.summarybar.refresh();
+    }).catch(function () {});
   }
 
   /** 选中的总人数（含自己）。为 0 时不该发查询——一个人都没选，拉回来必然是空表 */
@@ -5954,12 +6498,14 @@ button,input,select,textarea{font:inherit;color:inherit;}
     return (state.ctx && state.ctx.name) || '我';
   }
 
-  async function load() {
+  async function load(options) {
+    const mode = options || {};
     ensureMounted();
     const seq = ++state.reqSeq;
     state.loading = true;
     state.error = null;
     state.memberErrors = [];
+    state.dailyError = '';
     state.fieldWarn = '';
     state.progress = null;
     state.truncated = false;
@@ -5968,144 +6514,98 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
     try {
       await ensureConfig();
-      const ctx = await NS.detect.context();
+      const scope = await NS.rangeData.resolve(state.prefs);
       if (seq !== state.reqSeq) return;
-      state.ctx = ctx;
-      if (refs.org) refs.org.textContent = (ctx && (ctx.orgName || ctx.orgId)) || '未知组织';
-      await loadMembers(ctx && ctx.orgId);
-      if (seq !== state.reqSeq) return;
-
-      try {
-        state.contacts = (await NS.store.getContacts(ctx.orgId)) || {};
-      } catch (e) {
-        state.contacts = {};
-      }
+      state.ctx = scope.ctx;
+      state.includeSelf = scope.includeSelf !== false;
+      state.memberIds = scope.memberIds.slice();
+      state.memberOrgId = String((scope.ctx && scope.ctx.orgId) || '');
+      state.contacts = scope.contacts || {};
+      if (refs.org) refs.org.textContent = (state.ctx && (state.ctx.orgName || state.ctx.orgId)) || '未知组织';
       const sig = contactsSig(state.contacts);
       if (sig !== state.contactsSig) {
         state.contactsSig = sig;
         invalidateMemberPicker();
       }
+      state.fieldMap = scope.fieldMap;
+      state.fieldWarn = scope.fieldWarn;
 
-      const fm = await NS.detect.fieldMap();
-      if (seq !== state.reqSeq) return;
-      state.fieldMap = fm;
-      if (!fm) {
-        throw fieldError('没探测到工时字段：云效里至少要有一个工作项才能读到字段定义，也可以到设置页手动指定字段 identifier。');
-      }
-
-      // 工时字段缺一个不该静默按 0 统计：概览卡「预计 0h」、偏差全是正数、
-      // 热力图整片灰 + 每个工作日都标「不足」，全屏没一个字解释，用户只会以为插件算错了
-      const missing = [];
-      if (!fm.estimated || !fm.estimated.id) missing.push('预计工时');
-      if (!fm.actual || !fm.actual.id) missing.push('实际工时');
-      state.fieldWarn = missing.length
-        ? '未识别到「' + missing.join('」「') + '」字段，相关数字按 0 计算。可到设置页手动指定字段 identifier。'
-        : '';
-
-      const basisKey = state.dateBasis === 'planStart' ? 'planStart' : 'planEnd';
-      const dateField = fm[basisKey];
-      if (!dateField || !dateField.id) {
-        throw fieldError('没识别到「' + (basisKey === 'planStart' ? '计划开始时间' : '计划完成时间') + '」字段，请到设置页手动指定后重试。');
-      }
-
-      // finishTime 口径：云效没有可筛的 finishTime 字段，只能用 planEnd 拉宽区间再本地过滤
-      let qStart = state.start;
-      let qEnd = state.end;
-      if (state.dateBasis === 'finishTime') {
-        qStart = U.toYMD(U.addDays(U.parseYMD(state.start), -FINISH_PAD_DAYS)) || state.start;
-        qEnd = U.toYMD(U.addDays(U.parseYMD(state.end), FINISH_PAD_DAYS)) || state.end;
-      }
-
-      const members = memberList();
-      const loadedBy = {};
-      state.progress = { done: 0, total: members.length, loaded: 0 };
-      renderStatus();
-
-      const results = await U.pmap(members, function (m) {
-        return NS.api.listWorkitems({
-          spaceType: 'User',
-          spaceIdentifier: m.id,
-          scope: 'personal',
-          category: '',
-          conditionGroups: [[
-            NS.api.cond.user('assignedTo', [m.id]),
-            NS.api.cond.dateBetween(dateField.id, qStart, qEnd)
-          ]],
-          orderBy: { fieldIdentifier: dateField.id, order: 'desc', className: 'date', format: 'input' },
-          pageSize: 200,
-          maxPages: 20,
-          onProgress: function (loaded) {
-            if (seq !== state.reqSeq) return;
-            loadedBy[m.id] = loaded || 0;
-            let sum = 0;
-            Object.keys(loadedBy).forEach(function (k) { sum += loadedBy[k]; });
-            state.progress.loaded = sum;
-            renderStatus();
-          }
-        }).then(function (res) {
-          if (seq === state.reqSeq && state.progress) {
-            state.progress.done++;
-            renderStatus();
-          }
-          return res;
-        });
-      }, CONCURRENCY);
-
-      if (seq !== state.reqSeq) return;
-
-      // 单个成员失败不影响整体：失败的人记进 memberErrors，其余照常统计
-      const items = [];
-      const seen = {};
-      results.forEach(function (r, i) {
-        if (!r || r.__error) {
-          // 原始错误可能是 YXWT_NOT_LOGGED_IN 这种常量，先过一遍中文化再进 UI
-          state.memberErrors.push({
-            name: members[i].name,
-            error: r && r.__error ? errMsg({ message: r.__error }) : '未知错误'
-          });
-          return;
-        }
-        if (r.truncated) state.truncated = true;
-        (r.items || []).forEach(function (it) {
-          const id = it && it.identifier;
-          if (!id || seen[id]) return;
-          seen[id] = 1;
-          items.push(it);
-        });
-      });
-
-      if (state.memberErrors.length && state.memberErrors.length === members.length) {
-        throw new Error(state.memberErrors[0].error);
-      }
-
-      let rows = NS.stats.normalize(items, fm, {
+      const query = {
+        start: state.start,
+        end: state.end,
         dateBasis: state.dateBasis,
         excludeCancelled: state.prefs.excludeCancelled !== false
-      }) || [];
-
-      if (state.dateBasis === 'finishTime') {
-        rows = rows.filter(function (r) {
-          return r.date && r.date >= state.start && r.date <= state.end;
+      };
+      const monthRange = NS.rangeData.currentMonthRange();
+      const isCurrentMonth = query.start === monthRange.start && query.end === monthRange.end;
+      let daily = null;
+      // 手动强刷本月本身已经是全量刷新，不再额外发一次“每日自动刷新”。
+      if (!(mode.force && isCurrentMonth)) {
+        daily = await NS.rangeData.refreshThisMonthIfNeeded(scope, state.prefs, {
+          onProgress: function (p) {
+            if (seq !== state.reqSeq) return;
+            state.progress = Object.assign({ label: '自动刷新本月' }, p);
+            renderStatus();
+          }
         });
+        if (seq !== state.reqSeq) return;
+        if (daily.error) state.dailyError = errMsg(daily.error);
       }
+      let snapshot = null;
+      if (!mode.force && isCurrentMonth && daily && daily.snapshot) snapshot = daily.snapshot;
+      if (!snapshot && !mode.force) snapshot = await NS.rangeData.readSnapshot(scope, query);
+      if (!snapshot && isCurrentMonth && daily && daily.error) throw daily.error;
+      if (seq !== state.reqSeq) return;
+      if (!snapshot && mode.cacheOnly) {
+        state.rows = [];
+        state.hasSnapshot = false;
+        state.snapshotKey = NS.rangeData.cacheKey(scope, query);
+        state.loadedAt = null;
+        state.booted = true;
+        state.loading = false;
+        state.progress = null;
+        renderFilters();
+        renderAll();
+        return;
+      }
+      if (!snapshot) {
+        state.rows = [];
+        state.hasSnapshot = false;
+        snapshot = await NS.rangeData.fetchSnapshot(scope, Object.assign({}, query, {
+          onProgress: function (p) {
+            if (seq !== state.reqSeq) return;
+            state.progress = p;
+            renderStatus();
+          }
+        }));
+      }
+      if (seq !== state.reqSeq) return;
 
-      state.rows = rows;
+      state.rows = snapshot.rows || [];
+      state.hasSnapshot = true;
+      state.snapshotKey = snapshot.cacheKey || NS.rangeData.cacheKey(scope, query);
+      state.memberErrors = snapshot.memberErrors || [];
+      state.truncated = !!snapshot.truncated;
       state.edits = {};
       state.failed = {};
       state.failedDetail = {};
       state.booted = true;
       state.loading = false;
-      state.loadedAt = Date.now();
+      state.loadedAt = Number(snapshot.savedAt) || Date.now();
+      state.progress = null;
       // 重新取数后仍停在旧的单日下钻上，很容易出现「明细 0 / N 条」而用户不知道为什么
-      if (state.dayFilter && rows.every(function (r) { return r.date !== state.dayFilter; })) {
+      if (state.dayFilter && state.rows.every(function (r) { return r.date !== state.dayFilter; })) {
         state.dayFilter = null;
       }
       // 「只看未填预计」同理：新区间可能一条都不缺，留着筛选就是一张空表
-      if (state.missingOnly && !countMissing(rows)) state.missingOnly = false;
+      if (state.missingOnly && !countMissing(state.rows)) state.missingOnly = false;
       // 置顶开关跟着设置页的总开关走（面板里可临时取消勾选，重新取数时回到设置的值）
       state.missingTop = !(state.prefs && state.prefs.warnMissingEst === false);
       renderFilters();
       renderAll();
+      if (mode.force && NS.summarybar && typeof NS.summarybar.refresh === 'function') {
+        NS.summarybar.refresh();
+      }
     } catch (e) {
       if (seq !== state.reqSeq) return;
       state.loading = false;
@@ -6117,12 +6617,6 @@ button,input,select,textarea{font:inherit;color:inherit;}
       renderFilters();
       renderErrorBody();
     }
-  }
-
-  function fieldError(msg) {
-    const e = new Error(msg);
-    e.__yxwtField = true;
-    return e;
   }
 
   /* ---------------------------------------------------------------- 主体状态：加载中 / 出错 / 空 */
@@ -6143,7 +6637,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (state.booted && state.rows.length) return;
     const box = showStateBox();
     const cards = el('div', 'yxp-cards');
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const s = el('div', 'yxp-skel');
       s.style.height = '68px';
       add(cards, s);
@@ -6168,7 +6662,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     add(box, el('div', 'msg', state.error.message));
 
     const acts = el('div', 'acts');
-    add(acts, btn('yxp-btn primary', '重试', function () { load(); }));
+    add(acts, btn('yxp-btn primary', '重试', function () { load({ force: true }); }));
     if (kind === 'login') {
       const a = el('a', 'yxp-btn', '去登录云效');
       a.href = 'https://devops.aliyun.com/projex/workitem';
@@ -6190,8 +6684,20 @@ button,input,select,textarea{font:inherit;color:inherit;}
       '试试换个时间范围，或把归集口径从「' + basisLabel(state.dateBasis) + '」换成别的；' +
       '也可能是这些任务没填工时字段。'));
     const acts = el('div', 'acts');
-    add(acts, btn('yxp-btn primary', '重新加载', function () { load(); }));
+    add(acts, btn('yxp-btn primary', '刷新此区间', function () { load({ force: true }); }));
     add(acts, btn('yxp-btn', '打开设置', openOptions));
+    add(box, acts);
+  }
+
+  function renderNotLoadedBody() {
+    const box = showStateBox();
+    box.className = 'yxp-state';
+    box.style.textAlign = 'center';
+    add(box, el('div', 'big', '这个时间区间还没有加载数据'));
+    add(box, el('div', 'msg', state.start + ' ~ ' + state.end +
+      ' 尚无本地快照。只会加载当前所选区间，不会一次性拉取其它月份。'));
+    const acts = el('div', 'acts');
+    add(acts, btn('yxp-btn primary', '加载所选时间', function () { load({ force: true }); }));
     add(box, acts);
   }
 
@@ -6205,6 +6711,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
   function renderAll() {
     if (state.error) { renderErrorBody(); return; }
     if (state.loading && !state.rows.length) { renderLoadingBody(); return; }
+    if (!state.hasSnapshot) { renderNotLoadedBody(); renderStatus(); return; }
     if (!state.rows.length) { renderEmptyBody(); return; }
     showSections();
     renderOverview();
@@ -6320,6 +6827,43 @@ button,input,select,textarea{font:inherit;color:inherit;}
     }
 
     add(sec, cards);
+
+    // 工时目标统一从新的一行开始；所有范围都有总工时和总偏差，本周/本月再追加截止今日两项。
+    const workCards = el('div', 'yxp-cards yxp-workcards');
+
+    const calStart = state.dayFilter || state.start;
+    const calEnd = state.dayFilter || state.end;
+    const work = NS.workcalendar.summarize(calStart, calEnd, dailyTarget(), pickedCount());
+    let workSub = work.workdays + ' 个工作日 × ' + hours(work.dailyHours) + 'h';
+    if (work.memberCount > 1) workSub += ' × ' + work.memberCount + ' 人';
+    if (work.unsupportedYears.length) {
+      workSub = '仅按周一至周五 · 缺少 ' + work.unsupportedYears.join('、') + ' 年安排，请更新脚本';
+    }
+    add(workCards, card('工作日总工时', hours(work.hours), 'h', workSub,
+      work.unsupportedYears.length ? 'yxp-warn' : ''));
+
+    const workDiff = (Number(s.act) || 0) - work.hours;
+    add(workCards, card('工时偏差', (workDiff > 0 ? '+' : '') + hours(workDiff), 'h',
+      '实际 − 工作日总工时', workDiff > 0 ? 'yxp-bad' : (workDiff < 0 ? 'yxp-good' : '')));
+
+    if (state.rangeKey === 'thisMonth' || state.rangeKey === 'thisWeek') {
+      const today = U.toYMD(new Date());
+      const throughEnd = today < state.end ? today : state.end;
+      const through = NS.workcalendar.summarize(state.start, throughEnd, dailyTarget(), pickedCount());
+      let throughSub = through.workdays + ' 个工作日 × ' + hours(through.dailyHours) + 'h';
+      if (through.memberCount > 1) throughSub += ' × ' + through.memberCount + ' 人';
+      if (through.unsupportedYears.length) {
+        throughSub = '仅按周一至周五 · 缺少 ' + through.unsupportedYears.join('、') + ' 年安排，请更新脚本';
+      }
+      add(workCards, card('截止今日工时', hours(through.hours), 'h', throughSub,
+        through.unsupportedYears.length ? 'yxp-warn' : ''));
+
+      const throughDiff = (Number(s.act) || 0) - through.hours;
+      add(workCards, card('截止今日工时偏差', (throughDiff > 0 ? '+' : '') + hours(throughDiff), 'h',
+        '实际 − 截止今日工时', throughDiff > 0 ? 'yxp-bad' : (throughDiff < 0 ? 'yxp-good' : '')));
+    }
+
+    add(sec, workCards);
   }
 
   /**
@@ -6359,7 +6903,10 @@ button,input,select,textarea{font:inherit;color:inherit;}
   function renderCalendar() {
     const sec = clear(refs.secCalendar);
     const target = dailyTarget();
-    const days = NS.stats.byDay(state.rows, state.start, state.end, { dailyTargetHours: target }) || [];
+    const days = NS.stats.byDay(state.rows, state.start, state.end, {
+      dailyTargetHours: target,
+      isWorkday: function (ymd) { return NS.workcalendar.classify(ymd).workday; }
+    }) || [];
 
     const head = el('h3', 'yxp-sechead', '日历热力图');
     add(head, el('span', 'yxp-sub', '按「' + basisLabel(state.dateBasis) +
@@ -6390,8 +6937,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     days.forEach(function (d) {
       const lv = heatLevel(d.est, max);
       const cls = ['yxp-day', 'lv' + lv];
-      if (d.isWeekend) cls.push('weekend');
-      if (!d.isWeekend && d.target > 0 && d.est < d.target) cls.push('short');
+      if (!d.isWorkday) cls.push('weekend');
+      if (d.isWorkday && d.target > 0 && d.est < d.target) cls.push('short');
       if (state.dayFilter === d.ymd) cls.push('on');
       const cell = btn(cls.join(' '), '', function () { onPickDay(d.ymd); });
       const dd = U.parseYMD(d.ymd);
@@ -7154,6 +7701,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     let skipCount = 0;
     let failCount = 0;
     let unverifiedCount = 0;   // 写进去了但云效汇总还没刷新出来的条数
+    const cachePatches = {};
     for (let i = 0; i < list.length; i++) {
       const c = list[i];
       let res = null;
@@ -7175,6 +7723,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
         if (!dryRun && !res.dryRun) {
           c.row[c.which] = c.to;
           setEdit(c.row, c.which, null);
+          const patch = cachePatches[c.row.id] || (cachePatches[c.row.id] = { id: c.row.id });
+          patch[c.which] = c.to;
         }
       } else {
         failCount++;
@@ -7185,6 +7735,18 @@ button,input,select,textarea{font:inherit;color:inherit;}
       }
       state.submitProgress.done = i + 1;
       renderEditBar();
+    }
+
+    // 写回成功后同步所有包含这些工作项的本地快照。否则刷新页面会重新读到旧快照，
+    // 用户还得再手动刷新一次才能看见刚刚由插件写入的值。
+    const patchList = Object.keys(cachePatches).map(function (id) { return cachePatches[id]; });
+    if (patchList.length) {
+      try {
+        await NS.store.patchRangeSnapshots(patchList);
+        if (NS.summarybar && typeof NS.summarybar.refresh === 'function') NS.summarybar.refresh();
+      } catch (e) {
+        try { console.warn('[云效工时统计] 本地快照同步失败', e); } catch (ignored) {}
+      }
     }
 
     state.submitting = false;
@@ -7420,7 +7982,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
   /* ================= src/summarybar.js ================= */
 /**
  * YXWT.summarybar —— 云效工作项列表页底部常驻统计条。
- * 依赖（均在本文件之前加载）：util / store / api / detect / stats / ui / panel。
+ * 依赖（均在本文件之前加载）：util / summaryItems / store / api / detect / stats /
+ * workcalendar / rangeData / ui / panel。
  * 原则：任何一步失败都静默降级，只把「统计失败，点击重试」写到条上，绝不弹窗打断云效。
  */
 (function () {
@@ -7445,7 +8008,11 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
   const FALLBACK_PREFS = {
     showSummaryBar: true,
+    dailyTargetHours: 8,
     dateBasis: 'planEnd',
+    defaultRange: 'thisWeek',
+    summaryBarItems: [],
+    includeSelf: true,
     excludeCancelled: true,
     warnMissingEst: true,
     theme: 'auto'
@@ -7457,7 +8024,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '.yxwt-sb{',
     '  position:fixed;z-index:2147483000;',
     '  box-sizing:border-box;height:32px;padding:0 6px 0 10px;',
-    '  display:inline-flex;align-items:center;gap:10px;max-width:min(72vw,720px);',
+    '  display:inline-flex;align-items:center;gap:10px;width:max-content;max-width:none;',
     '  border-radius:16px;cursor:grab;user-select:none;touch-action:none;',
     '  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;',
     '  font-size:12px;line-height:1;letter-spacing:.01em;',
@@ -7473,7 +8040,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '.yxwt-sb.is-mini{padding:0 4px 0 8px;gap:6px;}',
     '.yxwt-sb.is-mini .yxwt-sb__msg,.yxwt-sb.is-mini .yxwt-sb__btn{display:none;}',
     '.yxwt-sb.is-mini .yxwt-sb__name{display:none;}',
-    '.yxwt-sb__brand{appearance:none;border:0;font:inherit;cursor:pointer;}',
+    '.yxwt-sb__brand{appearance:none;border:0;font:inherit;cursor:grab;touch-action:none;}',
+    '.yxwt-sb.is-dragging .yxwt-sb__brand{cursor:grabbing;}',
     '.yxwt-sb__brand{',
     '  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;',
     '  padding:3px 8px;border-radius:999px;font-size:12px;font-weight:600;',
@@ -7481,22 +8049,21 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  background:var(--yxwt-accent-soft,rgba(47,107,255,.10));',
     '}',
     '.yxwt-sb__dot{width:6px;height:6px;border-radius:50%;background:currentColor;}',
-    // text-overflow 对 flex 子项无效，所以这里不写 ellipsis：改成让每个指标自己可收缩
-    // （flex:0 1 auto + min-width:0），窄屏时收缩而不是被 overflow:hidden 齐刷刷切掉
+    // 指标值必须完整可读：消息区和整条浮标都按内容宽度展开，不收缩、不滚动、不显示省略号。
     '.yxwt-sb__msg{',
-    '  flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:14px;',
-    '  overflow:hidden;white-space:nowrap;',
+    '  flex:0 0 auto;min-width:max-content;display:flex;align-items:center;gap:14px;',
+    '  overflow:visible;white-space:nowrap;',
     '}',
     '.yxwt-sb__item{display:inline-flex;align-items:baseline;gap:5px;',
-    '  flex:0 1 auto;min-width:0;overflow:hidden;}',
+    '  flex:0 0 auto;min-width:max-content;overflow:visible;}',
     '.yxwt-sb__k{color:var(--yxwt-muted,#6b7280);font-size:12px;white-space:nowrap;}',
     '.yxwt-sb__v{font-weight:600;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;',
-    '  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+    '  white-space:nowrap;}',
     '.yxwt-sb__v.is-good{color:var(--yxwt-good,#12855b);}',
     '.yxwt-sb__v.is-warn{color:var(--yxwt-warn,#c2670a);}',
     '.yxwt-sb__v.is-bad{color:var(--yxwt-bad,#d93a2b);}',
     '.yxwt-sb__v.is-dim{color:var(--yxwt-dim,#8a94a6);font-weight:400;}',
-    '.yxwt-sb__text{color:var(--yxwt-muted,#6b7280);overflow:hidden;text-overflow:ellipsis;}',
+    '.yxwt-sb__text{color:var(--yxwt-muted,#6b7280);white-space:nowrap;}',
     '.yxwt-sb__text.is-error{color:var(--yxwt-danger,#c62f2f);}',
     '.yxwt-sb__btn{',
     '  flex:0 0 auto;appearance:none;border:0;cursor:pointer;',
@@ -7588,6 +8155,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     lastKey: '',
     groupedView: false,
     forceKey: Object.create(null),   // 用户对某个列表点过「仍要统计」
+    forceRefresh: false,
     errored: false
   };
 
@@ -7985,19 +8553,24 @@ button,input,select,textarea{font:inherit;color:inherit;}
   function makeDraggable(bar) {
     let dragging = false;
     let moved = false;
+    let captureTarget = null;
     let sx = 0, sy = 0, ox = 0, oy = 0;
 
     bar.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return;
-      // 按钮上按下不拖，否则点「详细统计」会变成拖拽
+      // 普通按钮上按下不拖；品牌蓝色区域在展开/折叠两种状态下都同时支持点击和拖动。
       const t = e.target;
-      if (t && t.closest && t.closest('button')) return;
+      const button = t && t.closest ? t.closest('button') : null;
+      const brandButton = button && button.classList.contains('yxwt-sb__brand');
+      if (button && !brandButton) return;
       dragging = true;
       moved = false;
       sx = e.clientX; sy = e.clientY;
       const r = bar.getBoundingClientRect();
       ox = r.left; oy = r.top;
-      try { bar.setPointerCapture(e.pointerId); } catch (err) { /* 老浏览器忽略 */ }
+      // 品牌按钮要自己持有 pointer capture，否则无移动点击会被重定向到外层 bar。
+      captureTarget = brandButton ? button : bar;
+      try { captureTarget.setPointerCapture(e.pointerId); } catch (err) { /* 老浏览器忽略 */ }
     });
 
     bar.addEventListener('pointermove', function (e) {
@@ -8016,10 +8589,14 @@ button,input,select,textarea{font:inherit;color:inherit;}
       if (!dragging) return;
       dragging = false;
       bar.classList.remove('is-dragging');
-      try { bar.releasePointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      try { if (captureTarget) captureTarget.releasePointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      captureTarget = null;
       if (!moved) return;
       const r = bar.getBoundingClientRect();
       savePos({ x: r.left, y: r.top });
+      // pointerup 后浏览器还会派发 click；标记到当前任务结束，避免拖完品牌区又立即折叠/展开。
+      bar.setAttribute('data-yxwt-dragged', '1');
+      setTimeout(function () { bar.removeAttribute('data-yxwt-dragged'); }, 0);
     };
     bar.addEventListener('pointerup', end);
     bar.addEventListener('pointercancel', end);
@@ -8054,11 +8631,17 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const brand = el('button', 'yxwt-sb__brand');
     if (brand.setAttribute) {
       brand.setAttribute('type', 'button');
-      brand.title = '点一下折叠/展开（折叠后只剩一个小标记，完全不挡页面）';
+      brand.title = '点一下折叠/展开，按住可拖动（折叠后只剩一个小标记）';
     }
     brand.appendChild(el('span', 'yxwt-sb__dot'));
     brand.appendChild(el('span', 'yxwt-sb__name', '工时统计'));
-    brand.addEventListener('click', function () { toggleMini(); });
+    brand.addEventListener('click', function (e) {
+      if (bar.getAttribute('data-yxwt-dragged') === '1') {
+        e.preventDefault();
+        return;
+      }
+      toggleMini();
+    });
     const msg = el('div', 'yxwt-sb__msg');
     const btn = el('button', 'yxwt-sb__btn', '详细统计');
     if (btn.setAttribute) btn.setAttribute('type', 'button');
@@ -8187,7 +8770,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       // 重试做成真 <button>：原来是给 div 挂 click，键盘和读屏用户既感知不到也点不了
       const b = el('button', 'yxwt-sb__retry', text);
       if (b.setAttribute) b.setAttribute('type', 'button');
-      b.addEventListener('click', refreshNow);
+      b.addEventListener('click', function () { refreshNow(true); });
       msg.appendChild(b);
     } else {
       msg.appendChild(el('span', 'yxwt-sb__text', text));
@@ -8206,7 +8789,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       wrap.appendChild(el('span', 'yxwt-sb__v' + (it.tone ? ' is-' + it.tone : ''), it.v));
       msg.appendChild(wrap);
     }
-    // 窄屏会收缩甚至截断，把完整数值一并写进 title，悬浮至少读得到
+    // title 继续保留完整摘要，便于悬浮查看统计范围和快照时间。
     const full = items.map(function (it) {
       return (it.k ? it.k + ' ' : '') + it.v;
     }).join(' · ');
@@ -8259,43 +8842,92 @@ button,input,select,textarea{font:inherit;color:inherit;}
     }
   }
 
-  function renderResult(sum, hasFieldMap, truncated, scopeText, skipped, missing) {
-    const items = [{
-      k: '共',
-      v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条'
-    }];
-    // 云效列表显示的是原始条数，这里排除了已取消。浮标要窄，所以只在条数后面
-    // 加个小角标，完整说明放 tooltip 里（不说明会让人以为算错了）。
-    if (skipped > 0) {
-      items[0].v += '*';
-    }
-    // 分组视图下，页面显示的条数和浮标不一致是必然的，加个显式标记别让人猜
-    if (state.groupedView) {
-      items.push({ k: '', v: '全视图', tone: 'dim' });
-    }
-    if (hasFieldMap) {
-      const diff = Number(sum.diff) || 0;
-      items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
-      items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
-      items.push({
-        k: '偏差',
+  function customMetrics(sum, truncated, range, missing, rows, memberCount) {
+    const prefs = state.prefs || FALLBACK_PREFS;
+    const diff = Number(sum.diff) || 0;
+    const overdue = NS.stats.overdue(rows, Date.now()) || { rate: 0 };
+    const work = NS.workcalendar.summarize(range.start, range.end,
+      prefs.dailyTargetHours, memberCount);
+    const workDiff = (Number(sum.act) || 0) - work.hours;
+    const values = {
+      range: { v: range.label },
+      count: { v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条' },
+      estimated: { v: fmtHours(sum.est) + ' h' },
+      actual: { v: fmtHours(sum.act) + ' h' },
+      diff: {
         v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
         tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
-      });
-      // 漏填的预计工时会把上面的「预计」压低，不点出来根本发现不了
-      if (missing > 0) items.push({ k: '未填预计', v: String(missing) + ' 条', tone: 'bad' });
+      },
+      avgPerDay: { v: fmtHours(sum.avgPerDay) + ' h' },
+      overdueRate: { v: fmtHours(overdue.rate) + ' %', tone: overdue.rate > 20 ? 'bad' : '' },
+      missingEst: { v: String(Number(missing) || 0) + ' 条', tone: missing > 0 ? 'bad' : 'good' },
+      workdayTotal: { v: fmtHours(work.hours) + ' h', tone: work.unsupportedYears.length ? 'warn' : '' },
+      workdayDiff: {
+        v: (workDiff > 0 ? '+' : '') + fmtHours(workDiff) + ' h',
+        tone: workDiff > 0 ? 'bad' : (workDiff < 0 ? 'good' : '')
+      }
+    };
+
+    if (range.key === 'thisWeek' || range.key === 'thisMonth') {
+      const today = util().toYMD(new Date());
+      const throughEnd = today < range.end ? today : range.end;
+      const through = NS.workcalendar.summarize(range.start, throughEnd,
+        prefs.dailyTargetHours, memberCount);
+      const throughDiff = (Number(sum.act) || 0) - through.hours;
+      values.throughToday = {
+        v: fmtHours(through.hours) + ' h', tone: through.unsupportedYears.length ? 'warn' : ''
+      };
+      values.throughTodayDiff = {
+        v: (throughDiff > 0 ? '+' : '') + fmtHours(throughDiff) + ' h',
+        tone: throughDiff > 0 ? 'bad' : (throughDiff < 0 ? 'good' : '')
+      };
+    }
+
+    const config = NS.summaryItems;
+    const selected = config.normalize(prefs.summaryBarItems, range.key);
+    const byKey = Object.create(null);
+    config.available(range.key).forEach(function (item) { byKey[item.key] = item; });
+    return selected.map(function (key) {
+      const def = byKey[key];
+      const value = values[key];
+      return def && value ? { k: def.shortLabel, v: value.v, tone: value.tone || '' } : null;
+    }).filter(Boolean);
+  }
+
+  function renderResult(sum, hasFieldMap, truncated, range, savedAt, missing, memberErrors, rows, memberCount) {
+    const prefs = state.prefs || FALLBACK_PREFS;
+    const selected = NS.summaryItems.normalize(prefs.summaryBarItems, range.key);
+    let items = null;
+    if (selected.length) {
+      items = customMetrics(sum, truncated, range, missing, rows, memberCount);
     } else {
-      items.push({ k: '', v: '未识别到工时字段' });
+      // 空配置严格保持旧版显示，避免升级后已有用户的悬浮条突然变化。
+      items = [{ k: '范围', v: range.label }, {
+        k: '共',
+        v: String(Number(sum.count) || 0) + (truncated ? '+' : '') + ' 条'
+      }];
+      if (hasFieldMap) {
+        const diff = Number(sum.diff) || 0;
+        items.push({ k: '预计', v: fmtHours(sum.est) + ' h' });
+        items.push({ k: '实际', v: fmtHours(sum.act) + ' h' });
+        items.push({
+          k: '偏差',
+          v: (diff > 0 ? '+' : '') + fmtHours(diff) + ' h',
+          tone: diff > 0 ? 'warn' : (diff < 0 ? 'good' : '')
+        });
+        // 漏填的预计工时会把上面的「预计」压低，不点出来根本发现不了
+        if (missing > 0) items.push({ k: '未填预计', v: String(missing) + ' 条', tone: 'bad' });
+      } else {
+        items.push({ k: '', v: '未识别到工时字段' });
+      }
     }
-    let title = '统计范围：' + (scopeText || '当前列表');
-    if (state.groupedView) {
-      title += '\n⚠ 这个视图开了分组：浮标统计的是**整个视图**，不随你点的分组标签（如「待处理 25」）变化。';
-    }
-    if (skipped > 0) title += '\n* 已排除 ' + skipped + ' 条「已取消」的工作项（可在设置页关掉）';
+    let title = '统计范围：' + range.label + '（' + range.start + ' ~ ' + range.end + '）';
+    if (savedAt) title += '\n本地快照：' + new Date(savedAt).toLocaleString();
     if (missing > 0) {
       title += '\n⚠ ' + missing + ' 条没填「预计工时」，上面的预计合计是偏低的；点「详细统计」可以标红置顶看是哪些。';
     }
-    if (truncated) title += '（超出 ' + PAGE_SIZE * MAX_PAGES + ' 条，仅统计前 ' + PAGE_SIZE * MAX_PAGES + ' 条）';
+    if (memberErrors && memberErrors.length) title += '\n⚠ ' + memberErrors.length + ' 位成员加载失败，本次统计不含其数据。';
+    if (truncated) title += '\n数据达到分页上限，统计可能不完整。';
     if (!hasFieldMap) title += '；请到设置页手动指定预计/实际工时字段';
     setMetrics(items, title);
   }
@@ -8330,111 +8962,59 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const seq = ++state.seq;
     abortInFlight();
 
-    let controller = null;
-    if (typeof AbortController === 'function') {
-      controller = new AbortController();
-      state.abort = controller;
-    }
-
     renderLoading(0, 0);
 
     try {
-      let fieldMap = null;
-      try {
-        fieldMap = await NS.detect.fieldMap();
-      } catch (e) {
-        fieldMap = null;   // 字段探测失败不影响「共 N 条」
-      }
-      if (seq !== state.seq) return;
-
-      const query = await buildQuery(ctx);
-      if (seq !== state.seq) return;
-
-      // 视图开了分组时，先把用户点中的那个标签解出来。
-      // 这一步失败（认不出来/接口挂了）不能让整条统计失败，退回「全视图」并标注。
-      let picked = null;
-      if (query.groupField) {
-        try {
-          const groups = await NS.api.listGroups({
-            spaceType: query.spaceType,
-            spaceIdentifier: query.spaceIdentifier,
-            scope: query.scope,
-            conditionGroups: query.conditionGroups,
-            groupField: query.groupField,
-            signal: controller ? controller.signal : undefined
-          });
-          if (seq !== state.seq) return;
-          picked = detectActiveGroup(groups);
-        } catch (e) {
-          if (isAbort(e)) return;
-          warn(e);
-        }
-      }
-      const groupCondition = groupConditionOf(query.groupField, picked);
-      // 只有「开了分组但没认出选中项」才需要提示统计范围是全视图
-      state.groupedView = !!query.groupField && !groupCondition;
-      if (picked) query.scopeText = (query.scopeText || '当前列表') + ' · ' + picked.name;
-
-      // 先只拉 1 条探总量：像「全部任务 10228 条」这种列表，
-      // 无脑翻 10 页拉 2000 条既慢又给云效添负担，而且合计出来也没什么意义。
-      // 超过阈值就停下来问一句，让人自己决定要不要统计。
-      const probe = await NS.api.listWorkitems({
-        spaceType: query.spaceType,
-        spaceIdentifier: query.spaceIdentifier,
-        scope: query.scope,
-        category: query.category,
-        conditionGroups: query.conditionGroups,
-        groupCondition: groupCondition,
-        pageSize: 1,
-        maxPages: 1,
-        signal: controller ? controller.signal : undefined
-      });
-      if (seq !== state.seq) return;
-
-      const total = Number(probe.total) || 0;
-      const routeId = routeKey(ctx) + '|' + (picked ? picked.identifier : '');
-      if (total > BIG_LIST && !state.forceKey[routeId]) {
-        renderTooBig(total, routeId, query.scopeText);
-        return;
-      }
-
-      const res = await NS.api.listWorkitems({
-        spaceType: query.spaceType,
-        spaceIdentifier: query.spaceIdentifier,
-        scope: query.scope,
-        category: query.category,
-        conditionGroups: query.conditionGroups,
-        groupCondition: groupCondition,
-        pageSize: PAGE_SIZE,
-        maxPages: MAX_PAGES,
-        signal: controller ? controller.signal : undefined,
-        onProgress: function (loaded, tot) {
-          if (seq === state.seq) renderLoading(loaded, tot || total);
-        }
-      });
-      if (seq !== state.seq) return;
-
       const prefs = state.prefs || FALLBACK_PREFS;
-      const rows = NS.stats.normalize(res.items, fieldMap, {
+      const range = NS.rangeData.rangeFromPrefs(prefs);
+      const scope = await NS.rangeData.resolve(prefs);
+      if (seq !== state.seq) return;
+      const query = {
+        start: range.start,
+        end: range.end,
         dateBasis: prefs.dateBasis,
-        excludeCancelled: prefs.excludeCancelled
-      });
+        excludeCancelled: prefs.excludeCancelled !== false
+      };
+      const force = state.forceRefresh;
+      state.forceRefresh = false;
+      const monthRange = NS.rangeData.currentMonthRange();
+      const isCurrentMonth = query.start === monthRange.start && query.end === monthRange.end;
+      let daily = null;
+      // 次日首次访问自动全量刷新本月。面板同时打开时会复用 rangeData 内的同一个在途请求。
+      if (!(force && isCurrentMonth)) {
+        daily = await NS.rangeData.refreshThisMonthIfNeeded(scope, prefs, {
+          onProgress: function (p) {
+            if (seq === state.seq) setText('自动刷新本月… ' + p.done + '/' + p.total + ' 人', false);
+          }
+        });
+        if (seq !== state.seq) return;
+      }
+      let snapshot = (!force && isCurrentMonth && daily && daily.snapshot) ? daily.snapshot : null;
+      if (!snapshot && !force) snapshot = await NS.rangeData.readSnapshot(scope, query);
+      if (!snapshot && isCurrentMonth && daily && daily.error) throw daily.error;
+      if (!snapshot) {
+        snapshot = await NS.rangeData.fetchSnapshot(scope, Object.assign({}, query, {
+          onProgress: function (p) {
+            if (seq === state.seq) setText('统计中… ' + p.done + '/' + p.total + ' 人', false);
+          }
+        }));
+      }
+      if (seq !== state.seq) return;
+
+      const rows = snapshot.rows || [];
       const sum = NS.stats.summarize(rows);
-      const skipped = prefs.excludeCancelled
-        ? Math.max(0, (res.items ? res.items.length : 0) - rows.length)
-        : 0;
+      const fieldMap = scope.fieldMap;
       const hasFieldMap = !!(fieldMap && (fieldMap.estimated || fieldMap.actual));
       // 预计工时字段没识别出来时整表 est 都是 0，这时候提示「全都没填」是误报
       const canWarnMissing = !!(fieldMap && fieldMap.estimated && fieldMap.estimated.id) &&
         prefs.warnMissingEst !== false;
       const missing = canWarnMissing ? NS.stats.missingEst(rows).count : 0;
-      renderResult(sum, hasFieldMap, !!res.truncated, query.scopeText, skipped, missing);
+      renderResult(sum, hasFieldMap, !!snapshot.truncated, range, snapshot.savedAt, missing,
+        snapshot.memberErrors, rows, scope.members.length);
     } catch (e) {
       if (seq !== state.seq || isAbort(e)) return;
       warn(e);
       renderError(e);
-    } finally {
-      if (state.abort === controller) state.abort = null;
     }
   }
 
@@ -8454,7 +9034,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     doRefresh().catch(warn);
   }
 
-  function refreshNow() {
+  function refreshNow(force) {
+    if (force === true) state.forceRefresh = true;
     state.lastKey = '';
     runRefresh();
   }
@@ -8514,6 +9095,9 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (!a || !b) return false;
     return a.showSummaryBar === b.showSummaryBar &&
       a.dateBasis === b.dateBasis &&
+      a.defaultRange === b.defaultRange &&
+      JSON.stringify(a.summaryBarItems || []) === JSON.stringify(b.summaryBarItems || []) &&
+      a.includeSelf === b.includeSelf &&
       a.excludeCancelled === b.excludeCancelled &&
       a.warnMissingEst === b.warnMissingEst &&
       a.theme === b.theme;

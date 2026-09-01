@@ -9,6 +9,7 @@
   'use strict';
 
   const store = window.YXWT && window.YXWT.store;
+  const summaryItems = window.YXWT && window.YXWT.summaryItems;
 
   const YX_PREFIX = 'https://devops.aliyun.com/';
   const YX_MATCH = 'https://devops.aliyun.com/*';
@@ -234,6 +235,49 @@
     $('live-warn').hidden = !!dryRun;
   }
 
+  function renderSummaryBarItems(prefs) {
+    const p = prefs || {};
+    const box = $('summaryBarItems');
+    if (!box || !summaryItems) return;
+    box.textContent = '';
+
+    const selected = summaryItems.normalize(p.summaryBarItems, p.defaultRange);
+    const chosen = Object.create(null);
+    selected.forEach(function (key) { chosen[key] = true; });
+
+    summaryItems.available(p.defaultRange).forEach(function (item) {
+      const input = el('input', { type: 'checkbox', value: item.key });
+      input.checked = !!chosen[item.key];
+      const fixed = item.key === 'range' && selected.length > 0;
+      input.disabled = fixed;
+
+      const label = el('label', { class: 'metric-pick' + (input.checked ? ' on' : '') + (fixed ? ' fixed' : '') });
+      label.appendChild(input);
+      label.appendChild(el('span', { text: item.label }));
+      if (fixed) label.appendChild(el('span', { class: 'required', text: '必显' }));
+      box.appendChild(label);
+
+      input.addEventListener('change', function () {
+        const values = [];
+        const nodes = box.querySelectorAll('input[type="checkbox"]');
+        for (let i = 0; i < nodes.length; i++) if (nodes[i].checked) values.push(nodes[i].value);
+        const next = summaryItems.normalize(values, p.defaultRange);
+        savePrefs({ summaryBarItems: next }).then(function (cfg) {
+          renderSummaryBarItems((cfg || state.cfg).prefs);
+        });
+      });
+    });
+
+    const reset = $('summaryBarItemsReset');
+    const note = $('summaryBarItemsNote');
+    if (reset) reset.hidden = selected.length === 0;
+    if (note) {
+      note.textContent = selected.length
+        ? '已自定义显示 ' + selected.length + ' 项；范围为必显项。'
+        : '未选择：沿用范围、条数、预计、实际、偏差等当前样式。';
+    }
+  }
+
   function fillGeneral(cfg) {
     const p = cfg.prefs;
     $('dailyTargetHours').value = String(p.dailyTargetHours);
@@ -243,6 +287,7 @@
     $('excludeCancelled').checked = !!p.excludeCancelled;
     $('warnMissingEst').checked = p.warnMissingEst !== false;
     $('showSummaryBar').checked = !!p.showSummaryBar;
+    renderSummaryBarItems(p);
     setWriteMode(p.dryRun !== false);
   }
 
@@ -264,7 +309,18 @@
       savePrefs({ dateBasis: this.value });
     });
     $('defaultRange').addEventListener('change', function () {
-      savePrefs({ defaultRange: this.value });
+      const select = this;
+      const before = state.cfg && state.cfg.prefs ? state.cfg.prefs : {};
+      const nextItems = summaryItems.normalize(before.summaryBarItems, select.value);
+      savePrefs({ defaultRange: select.value, summaryBarItems: nextItems }).then(function (cfg) {
+        if (!cfg) select.value = before.defaultRange || 'thisWeek';
+        renderSummaryBarItems((cfg || state.cfg).prefs);
+      });
+    });
+    $('summaryBarItemsReset').addEventListener('click', function () {
+      savePrefs({ summaryBarItems: [] }).then(function (cfg) {
+        renderSummaryBarItems((cfg || state.cfg).prefs);
+      });
     });
     $('theme').addEventListener('change', function () {
       applyTheme(this.value);
@@ -682,8 +738,8 @@
     fillSelect($('defaultRange'), RANGE_OPTIONS);
     fillSelect($('theme'), THEME_OPTIONS);
 
-    if (!store) {
-      fatal('本地存储模块加载失败，设置页无法工作。请在 chrome://extensions 里重新加载本插件。');
+    if (!store || !summaryItems) {
+      fatal('本地设置模块加载失败，设置页无法工作。请在 chrome://extensions 里重新加载本插件。');
       return;
     }
 

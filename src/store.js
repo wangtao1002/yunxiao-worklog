@@ -17,10 +17,14 @@
     context: null,       // 最后一次成功识别的身份，仅在推不出当前组织时作降级回退
     // 团队视图里额外纳入的 userId，同样必须按组织分桶：userId 只在本组织有意义
     membersByOrg: {},    // { [orgId]: [userId] }
+    // 按“组织 + 成员 + 口径 + 起止日期”保存的统计快照。只留最近 12 份，避免撑爆 storage.local。
+    rangeSnapshots: {},  // { [cacheKey]: {savedAt, rows, ...} }
     prefs: {
       dailyTargetHours: 8,
       dateBasis: 'planEnd',      // 'planEnd' | 'finishTime' | 'planStart'
       defaultRange: 'thisWeek',
+      // 空数组保持旧版悬浮条样式；非空时按所选概览指标显示，range 由 summaryItems 强制保留。
+      summaryBarItems: [],
       members: [],               // 【已废弃】旧的扁平成员数组，仅用于一次性迁移到 membersByOrg
       includeSelf: true,         // 统计里是否包含自己（想「只看某个同事」时可以关掉）
       showSummaryBar: true,
@@ -470,6 +474,81 @@
     });
   }
 
+  function getRangeSnapshot(cacheKey) {
+    const key = String(cacheKey || '');
+    if (!key) return Promise.resolve(null);
+    return get().then(function (cfg) {
+      const hit = cfg.rangeSnapshots[key];
+      return isPlainObject(hit) ? clone(hit) : null;
+    });
+  }
+
+  function setRangeSnapshot(cacheKey, snapshot) {
+    const key = String(cacheKey || '');
+    if (!key || !isPlainObject(snapshot)) return Promise.resolve(null);
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const all = clone(cfg.rangeSnapshots);
+        const next = clone(snapshot);
+        next.savedAt = typeof next.savedAt === 'number' ? next.savedAt : Date.now();
+        all[key] = next;
+
+        const keys = Object.keys(all).sort(function (a, b) {
+          return (Number(all[b] && all[b].savedAt) || 0) - (Number(all[a] && all[a].savedAt) || 0);
+        });
+        keys.slice(12).forEach(function (oldKey) { delete all[oldKey]; });
+
+        return rawSet({ rangeSnapshots: all }).then(function () { return clone(next); });
+      });
+    });
+  }
+
+  /**
+   * 写回云效成功后，把已知的新工时同步进所有命中该工作项的本地快照。
+   * 不改 savedAt：它表示整段数据最后一次从云效完整拉取的时间，不能被一次局部写回冒充成全量刷新。
+   */
+  function patchRangeSnapshots(patches) {
+    const byId = {};
+    (Array.isArray(patches) ? patches : []).forEach(function (patch) {
+      const id = String(patch && patch.id || '');
+      if (!id) return;
+      const next = byId[id] || (byId[id] = { id: id });
+      if (Object.prototype.hasOwnProperty.call(patch, 'est')) next.est = Number(patch.est) || 0;
+      if (Object.prototype.hasOwnProperty.call(patch, 'act')) next.act = Number(patch.act) || 0;
+    });
+    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0 });
+
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const all = clone(cfg.rangeSnapshots);
+        let snapshotCount = 0;
+        let rowCount = 0;
+
+        Object.keys(all).forEach(function (key) {
+          const snapshot = all[key];
+          if (!snapshot || !Array.isArray(snapshot.rows)) return;
+          let touched = false;
+          snapshot.rows.forEach(function (row) {
+            const patch = byId[String(row && row.id || '')];
+            if (!patch) return;
+            if (Object.prototype.hasOwnProperty.call(patch, 'est')) row.est = patch.est;
+            if (Object.prototype.hasOwnProperty.call(patch, 'act')) row.act = patch.act;
+            touched = true;
+            rowCount++;
+          });
+          if (touched) snapshotCount++;
+        });
+
+        if (!snapshotCount) return { snapshots: 0, rows: 0 };
+        return rawSet({ rangeSnapshots: all }).then(function () {
+          return { snapshots: snapshotCount, rows: rowCount };
+        });
+      });
+    });
+  }
+
   /**
    * 监听本地配置变化。cb(cfg, changes)，cfg 是合并后的完整配置。
    * 返回取消监听的函数。
@@ -525,6 +604,9 @@
     getContacts: getContacts,
     addContacts: addContacts,
     removeContact: removeContact,
+    getRangeSnapshot: getRangeSnapshot,
+    setRangeSnapshot: setRangeSnapshot,
+    patchRangeSnapshots: patchRangeSnapshots,
     onChange: onChange,
     clear: clear
   };

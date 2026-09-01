@@ -31,10 +31,13 @@ OUT_NAME = 'yunxiao-worklog.user.js'
 MODULES = [
     'src/gm-shim.js',
     'src/util.js',
+    'src/summary-items.js',
     'src/store.js',
     'src/api.js',
     'src/detect.js',
     'src/stats.js',
+    'src/workcalendar.js',
+    'src/range-data.js',
     'src/ui.js',
     'src/panel.js',
     'src/summarybar.js',
@@ -170,8 +173,7 @@ def build(host):
     if host:
         print('  自动更新已开启：%s' % host.rstrip('/'))
     else:
-        print('  ⚠ 没带 --host，脚本不会自动更新。想要自动更新就重跑：')
-        print('    python3 tools/build-userscript.py --host http://你的服务器/路径')
+        print('  未写入 @updateURL / @downloadURL；发布到 Greasy Fork 时由平台注入。')
     return out
 
 

@@ -332,13 +332,15 @@
       const d = parseYMD(ymd);
       const dow = d ? d.getDay() : 0;
       const weekend = isWeekendYMD(ymd);
-      const dayTarget = weekend ? 0 : target;
+      const workday = typeof o.isWorkday === 'function' ? o.isWorkday(ymd) !== false : !weekend;
+      const dayTarget = workday ? target : 0;
       const est = round2(b.est);
       return {
         ymd: ymd,
         dow: dow,
         weekday: WEEKDAY_LABELS[dow],
         isWeekend: weekend,
+        isWorkday: workday,
         count: b.count,
         est: est,
         act: round2(b.act),
