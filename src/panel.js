@@ -144,6 +144,8 @@
     '.yxp-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;',
     '  background:var(--yxp-primary-weak);color:var(--yxp-primary);font-size:12px;}',
     '.yxp-chip button{border:none;background:transparent;color:inherit;cursor:pointer;font-size:13px;padding:0;line-height:1;}',
+    // 统计不含自己是个反常态，chip 换成警示色，扫一眼就知道口径变了
+    '.yxp-chip-alt{background:var(--yxp-edit);color:var(--yxp-warn);}',
     '.yxp-memberbox{position:relative;}',
     '.yxp-picker{position:absolute;top:calc(100% + 6px);left:0;z-index:2147483001;width:320px;',
     '  max-height:340px;overflow:auto;background:var(--yxp-bg);border:1px solid var(--yxp-border-strong);',
@@ -290,6 +292,7 @@
     rangeError: '',         // 自定义区间起止颠倒时的提示
     dateBasis: 'planEnd',
     memberIds: [],          // 额外成员（不含自己），按 ctx.orgId 分桶存取
+    includeSelf: true,      // 是否把自己算进统计。想「只看某个同事」就得能把自己摘掉
     memberOrgId: null,      // memberIds 当前对应的组织，换组织要重新读
     memberErrors: [],       // [{name, error}]
     fieldWarn: '',          // 工时字段缺失的提示文案（缺 estimated / actual 时非空）
@@ -664,9 +667,23 @@
   }
 
   function memberSummaryChip() {
-    const me = state.ctx && state.ctx.name ? state.ctx.name : '我';
-    const txt = state.memberIds.length ? me + ' 等 ' + (state.memberIds.length + 1) + ' 人' : '只看我（' + me + '）';
-    return el('span', 'yxp-chip', txt);
+    const me = selfName();
+    const n = state.memberIds.length;
+    let txt;
+    if (!state.includeSelf && !n) txt = '没有选中任何人';
+    else if (!state.includeSelf) {
+      // 不含自己是个反常态，文案要说破，否则用户会以为数字算漏了
+      const only = n === 1 ? firstMemberName() : n + ' 人';
+      txt = '不含我 · ' + only;
+    } else if (!n) txt = '只看我（' + me + '）';
+    else txt = me + ' 等 ' + (n + 1) + ' 人';
+    return el('span', 'yxp-chip' + (state.includeSelf ? '' : ' yxp-chip-alt'), txt);
+  }
+
+  function firstMemberName() {
+    const id = state.memberIds[0];
+    const c = id && state.contacts[id];
+    return (c && c.name) || id || '';
   }
 
   function buildMemberPicker() {
@@ -675,6 +692,18 @@
     add(box, el('h4', '', '通讯录（本地积累，云效没有可用的成员搜索接口）'));
 
     const list = el('div', 'yxp-plist');
+
+    // 「我」也要有一个复选框：只加同事却摘不掉自己，就永远看不了「单看某个人」
+    const selfItem = el('div', 'yxp-pitem');
+    const selfLabel = el('label', '');
+    const selfCb = el('input', '');
+    selfCb.type = 'checkbox';
+    selfCb.checked = !!state.includeSelf;
+    selfCb.onchange = function () { onToggleSelf(selfCb.checked, selfCb); };
+    add(selfLabel, selfCb, el('span', '', selfName() + '（我）'));
+    add(selfItem, selfLabel);
+    add(list, selfItem);
+
     const ids = Object.keys(state.contacts || {});
     ids.sort(function (a, b) {
       const na = (state.contacts[a] && state.contacts[a].name) || a;
@@ -711,7 +740,20 @@
       refs.importBtn,
       btn('yxp-btn ghost', '只看我', function () {
         state.memberIds = [];
+        state.includeSelf = true;
         saveMembers();
+        invalidateMemberPicker();
+        renderFilters();
+        load();
+      }),
+      btn('yxp-btn ghost', '不含我', function () {
+        if (!state.memberIds.length) {
+          toast('先勾选至少一位同事，再把自己摘掉。', 'error');
+          return;
+        }
+        state.includeSelf = false;
+        saveMembers();
+        invalidateMemberPicker();
         renderFilters();
         load();
       })
@@ -730,7 +772,8 @@
   }
 
   function memberPickLabel() {
-    return state.memberIds.length ? '成员 (' + (state.memberIds.length + 1) + ')' : '+ 成员';
+    const n = pickedCount();
+    return n === 1 && state.includeSelf ? '+ 成员' : '成员 (' + n + ')';
   }
 
   // 勾选成员只刷新汇总文案，不重建选择器：通讯录可能有几十人，
@@ -746,8 +789,29 @@
 
   function onToggleMember(id, on) {
     const i = state.memberIds.indexOf(id);
+    // 取消最后一个人、且自己也没勾上 —— 那就一个人都不剩了，拦下来
+    if (!on && i >= 0 && state.memberIds.length === 1 && !state.includeSelf) {
+      toast('至少要选一个人。想看自己的话，勾上「' + selfName() + '（我）」。', 'error');
+      const cb = refs.memberPicker && refs.memberPicker.querySelector('input[type=checkbox]:not(:checked)');
+      if (cb) cb.checked = true;
+      invalidateMemberPicker();
+      renderFilters();
+      return;
+    }
     if (on && i < 0) state.memberIds.push(id);
     if (!on && i >= 0) state.memberIds.splice(i, 1);
+    saveMembers();
+    refreshMemberSummary();
+    load();
+  }
+
+  function onToggleSelf(on, cb) {
+    if (!on && !state.memberIds.length) {
+      toast('至少要选一个人。先勾一位同事，再把自己摘掉。', 'error');
+      if (cb) cb.checked = true;                  // 勾回去，别让界面停在一个不成立的状态
+      return;
+    }
+    state.includeSelf = !!on;
     saveMembers();
     refreshMemberSummary();
     load();
@@ -830,6 +894,9 @@
       cfg = null;
     }
     state.prefs = (cfg && cfg.prefs) || {};
+    // 只在首次启动时从存储取：setPrefs 是异步的，而 onToggleSelf 改完 state 立刻就 load()，
+    // 这里若每次都读，会在写入落盘前读到旧值，把用户刚点的选择顶回去。
+    if (!state.booted) state.includeSelf = state.prefs.includeSelf !== false;
     applyTheme();
     if (!state.booted && !state.start) {
       const key = state.prefs.defaultRange || 'thisWeek';
@@ -855,23 +922,40 @@
     } catch (e) {
       state.memberIds = [];
     }
+    // includeSelf 是跨组织的，memberIds 是分组织的：换到一个没存过成员的组织时，
+    // 「不含我 + 没有同事」＝一个人都没有，查出来必然空表。这里兜回默认的「只看我」。
+    if (!state.includeSelf && !state.memberIds.length) state.includeSelf = true;
   }
 
   function saveMembers() {
     const orgId = state.ctx && state.ctx.orgId;
     if (!orgId) return;
     NS.store.setMembers(orgId, state.memberIds.slice()).catch(function () {});
+    // includeSelf 不分组织：跨组织都是「这次想不想把自己算进去」，语义一致
+    NS.store.setPrefs({ includeSelf: !!state.includeSelf }).catch(function () {});
   }
 
   function memberList() {
-    const me = { id: state.ctx.userId, name: state.ctx.name || '我', self: true };
-    const out = [me];
+    const meId = state.ctx.userId;
+    const out = [];
+    if (state.includeSelf) {
+      out.push({ id: meId, name: state.ctx.name || '我', self: true });
+    }
     state.memberIds.forEach(function (id) {
-      if (!id || id === me.id) return;
+      if (!id || id === meId) return;
       const c = state.contacts[id];
       out.push({ id: id, name: (c && c.name) || id });
     });
     return out;
+  }
+
+  /** 选中的总人数（含自己）。为 0 时不该发查询——一个人都没选，拉回来必然是空表 */
+  function pickedCount() {
+    return (state.includeSelf ? 1 : 0) + state.memberIds.length;
+  }
+
+  function selfName() {
+    return (state.ctx && state.ctx.name) || '我';
   }
 
   async function load() {
