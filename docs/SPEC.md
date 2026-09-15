@@ -89,6 +89,9 @@ YXWT.store = {
   getRangeSnapshot(cacheKey),
   setRangeSnapshot(cacheKey, snapshot),
   patchRangeSnapshots(patches),       // 写回成功后修正所有命中工作项的快照，不改变 savedAt
+                                      // patch: {id, est?, act?, planStart?, planEnd?}；改了归集口径用的日期时，
+                                      // 命中快照重算 date、出区间删行；新日期落进来却缺这一行的快照整份作废
+                                      // -> {snapshots, rows, dropped}
   onChange(cb)                      // 包一层 chrome.storage.onChanged
 };
 ```
@@ -126,7 +129,8 @@ YXWT.api = {
   getFieldMeta(workitemId),   // -> [{id, name, className, format, type}]，已去重
   getFieldValues(workitemId), // -> 原始 result
 
-  saveFieldValue(workitemId, fieldId, value, {dryRun=true} = {})
+  saveFieldValue(workitemId, fieldId, value, {dryRun=true} = {}),
+  saveDateField(workitemId, fieldId, ymd, {dryRun=true} = {})   // 计划开始 / 计划完成时间，见 3.3
 };
 ```
 
@@ -171,6 +175,23 @@ YXWT.api.cond = {
    成功的端点形状要 `YXWT.store` 记住（`prefs._writeEndpoint`），下次直接用。
 5. 写完再 `getFieldValues` 复核，值不符则返回 `{ok:false, error:'写入后复核不一致'}`。
 6. 全部候选都失败 → `{ok:false, error:<最后一条错误>}`，**不得静默成功**。
+
+> 后来实证：工时不走这里的候选端点，改由 `saveWorkHours` 走专用的 `time` / `time/estimate`
+> （见 `docs/API-VERIFY.md`），复核不一致也不能报失败——那边重试会多记一条工时。
+
+### 3.3 `saveDateField` —— 计划开始 / 计划完成时间
+
+端点是 2026-09-15 拦截式抓包录下的云效自己的请求（见 `docs/API-VERIFY.md` 最后一节）：
+`POST /projex/api/workitem/workitem/field/value/{id}`，表单体
+`fieldValueList=[{"fieldIdentifier":<字段id>,"value":"YYYY-MM-DD 00:00:00"}]`，
+带 `X-Requested-With: XMLHttpRequest` 和从页面内联脚本读到的 `X-Csrf-Token`（读不到就不带；实测不强制校验）。
+
+1. `ymd` 必须是真实存在的 `YYYY-MM-DD`，`fieldId` 必须有，否则直接拒绝，不发请求。**不支持清空**。
+2. `dryRun` 为真 → 只读当前值返回 `{ok, dryRun, would:{from, to}}`。
+3. 按 identifier 重读工作项；读不到不写；日期部分没变 → `{ok, skipped:'unchanged'}`。
+4. 只发一次写请求。
+5. 写后重读复核（最多 3 次）。**读到的仍是旧值 → `{ok:false}`**：赋值语义下重试无害，
+   报成功却会让界面和快照记住一个没落库的日期（和工时的取舍相反）。复核读请求本身失败 → `{ok:true, unverified:true}`。
 
 ## 4. src/detect.js → `YXWT.detect`
 
@@ -329,7 +350,8 @@ YXWT.panel = { toggle(), open(), close(), isOpen() };
 **分组统计**：一组 tab（按项目 / 按类别 / 按状态 / 按成员），横向条形 + 数值，前 15 项 + 「其余 N 项」折叠
 
 **明细表**：
-- 列：编号 / 标题 / 项目 / 状态 / 负责人 / 工时列 / 计划完成 / 打开；预计、实际列按 `hoursBasis` 裁剪
+- 列：编号 / 标题 / 项目 / 状态 / 负责人 / 工时列 / 计划开始 / 计划完成 / 打开；预计、实际列按 `hoursBasis` 裁剪，
+  计划开始时间字段没识别出来时不摆这一列
 - 表头点击排序；顶部搜索框过滤标题/编号/项目
 - 「预计」「实际」两列都是 input，改动的行高亮；顶部出现「已修改 N 条 · 提交到云效 · 撤销」。
   某一列只在对应字段被**运行时探测**识别到时才可编辑（`fieldMap.estimated` / `fieldMap.actual`），
@@ -348,7 +370,16 @@ YXWT.panel = { toggle(), open(), close(), isOpen() };
   确认后逐条 `api.saveFieldValue(工作项id, 该条的 fieldId, ..., {dryRun:false})`，显示进度与失败清单，
   失败项保留在表里可重试。真实写入成功后就地更新 `r[which]`，收尾要重绘概览/日历/分组/明细四块
   （日历热力图按 `est` 着色，漏了它会和概览卡对不上）。
-  **默认 dryRun 由设置页开关控制，首次使用默认 true；该开关同时管着两列的写回。**
+  **默认 dryRun 由设置页开关控制，首次使用默认 true；该开关同时管着工时和计划日期的写回。**
+- 「计划开始」「计划完成」两列是原生日期框，字段识别到才可编辑，改动同样进 `state.edits`（值为 `'YYYY-MM-DD'`），
+  和工时一起走确认弹窗与提交；两个日期指向同一字段时只保留「计划完成」可编辑。
+  - 本地改动不挪日历格子、不改归集日期：写回成功之前它还不是云效上的事实。
+  - 键盘逐位敲年份会先出现 `0002-…` 这类中间值，年份不在 1970–2099 的一律不记。
+  - 「开始晚于完成」在失焦时退回本次改的那个日期并提示先改哪个；只在该格真有改动时才判，
+    云效上原本就颠倒的数据路过不报错。提交前再兜底检查一遍。
+  - 一行两个日期都改时分两次写，要保证中间态也是「开始 ≤ 完成」：新开始晚于旧完成（整体后移）时先写完成。
+  - 写回成功后就地更新该行；改的正是归集口径用的那个日期时同步改 `date`，落到当前区间外的行从本区间统计里移出
+    （还挂着别的改动或失败的行先留着），确认弹窗里提前标「移出当前区间」。快照同步见 `store.patchRangeSnapshots`。
 
 **底部工具条**：复制 Markdown / 导出 CSV / 打开设置
 

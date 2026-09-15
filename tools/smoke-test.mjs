@@ -655,7 +655,7 @@ await store.setRangeSnapshot('snap-x', { savedAt: 123, rows: [{ id: '1' }] });
 eq('store 精确区间快照可持久化回读', (await store.getRangeSnapshot('snap-x')).rows[0].id, '1');
 await store.setRangeSnapshot('snap-patch-a', { savedAt: 456, rows: [{ id: 'w-patch', est: 1, act: 2 }] });
 await store.setRangeSnapshot('snap-patch-b', { savedAt: 789, rows: [{ id: 'w-patch', est: 3, act: 4 }, { id: 'keep', est: 5 }] });
-eq('store 写回后同步所有命中快照', await store.patchRangeSnapshots([{ id: 'w-patch', est: 8, act: 9 }]), { snapshots: 2, rows: 2 });
+eq('store 写回后同步所有命中快照', await store.patchRangeSnapshots([{ id: 'w-patch', est: 8, act: 9 }]), { snapshots: 2, rows: 2, dropped: 0 });
 eq('store 快照同步保留完整刷新时间', await store.getRangeSnapshot('snap-patch-a'), { savedAt: 456, rows: [{ id: 'w-patch', est: 8, act: 9 }] });
 eq('store 快照同步不影响其它行', (await store.getRangeSnapshot('snap-patch-b')).rows[1].est, 5);
 
@@ -924,7 +924,9 @@ function makeFetchStub(script) {
   const stub = async (url, init) => {
     const method = (init && init.method) || 'GET';
     const body = init && init.body;
-    calls.push({ url: String(url), method, body, parsed: body ? JSON.parse(body) : null });
+    let parsed = null;
+    try { parsed = body ? JSON.parse(body) : null; } catch (e) { parsed = null; }   // 表单体不是 JSON
+    calls.push({ url: String(url), method, body, parsed, headers: (init && init.headers) || {} });
     const hit = script(String(url), method, calls.length);
     if (hit instanceof Error) throw hit;
     const status = hit.status || 200;
@@ -1151,6 +1153,152 @@ const OPT = (extra) => Object.assign({ fieldId: 'F1', userId: 'u-me' }, extra ||
   const bad = await api.saveWorkHours('w1', 'est', -1, OPT({ dryRun: false }));
   eq('saveWorkHours 负数工时被拒绝', bad.ok, false);
   eq('saveWorkHours 拒绝非法值时不发请求', sandbox.fetch.calls.length, 0);
+}
+
+/* ------------------------------------------------------------------ *
+ * 13b. api.saveDateField —— 计划开始 / 计划完成时间的写入
+ *      端点是 2026-09-15 拦下云效列表页就地改日期时它自己发的请求（没放行到服务端）：
+ *      POST field/value/{id}，表单体 fieldValueList=[{"fieldIdentifier","value":"YYYY-MM-DD 00:00:00"}]
+ *      赋值语义：写后读到的仍是旧值要报失败（和工时相反）
+ * ------------------------------------------------------------------ */
+
+const dateItem = (value) => ({
+  json: {
+    code: 200,
+    result: [{
+      identifier: 'w1',
+      customFields: (value === null || value === undefined)
+        ? []
+        : [{ fieldIdentifier: 'D80', fieldClassName: 'date', fieldFormat: 'input', value: value }]
+    }]
+  }
+});
+const writesOf = (calls) => calls.filter((c) => !isRead(c.url));
+const formList = (body) => JSON.parse(decodeURIComponent(String(body).replace(/^fieldValueList=/, '')));
+
+// 13b.1 默认 dryRun，一个写请求都不发
+{
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem('2026-09-16 00:00:00') : { json: { code: 200 } }));
+  const r = await api.saveDateField('w1', 'D80', '2026-09-18');
+  eq('saveDateField 不传 dryRun 时默认预演', [r.ok, r.dryRun], [true, true]);
+  eq('saveDateField 预演返回 旧值→新值', [r.would.from, r.would.to], ['2026-09-16 00:00:00', '2026-09-18']);
+  eq('saveDateField 预演绝不发写请求', writesOf(sandbox.fetch.calls).length, 0);
+}
+
+// 13b.2 日期没变就跳过（云效存的带 00:00:00，只比日期部分）
+{
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem('2026-09-16 00:00:00') : { json: { code: 200 } }));
+  const r = await api.saveDateField('w1', 'D80', '2026-09-16', { dryRun: false });
+  eq('saveDateField 日期未变时跳过', [r.ok, r.skipped], [true, 'unchanged']);
+  eq('saveDateField 日期未变时不发写请求', writesOf(sandbox.fetch.calls).length, 0);
+}
+
+// 13b.3 正常写入：路径、方法、请求头、表单体必须与抓包一致
+{
+  let stored = '2026-09-16 00:00:00';
+  sandbox.fetch = makeFetchStub((u) => {
+    if (isRead(u)) return dateItem(stored);
+    stored = '2026-09-18 00:00:00';
+    return { json: { code: 200, result: true } };
+  });
+  const r = await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 写入成功', [r.ok, !!r.unverified, r.to], [true, false, '2026-09-18']);
+  const ws = writesOf(sandbox.fetch.calls);
+  eq('saveDateField 只发一次写请求', ws.length, 1);
+  const w = ws[0];
+  ok('saveDateField 打到实证的 field/value/{id} 端点',
+    w.url.indexOf('/projex/api/workitem/workitem/field/value/w1?_input_charset=utf-8') === 0, w.url);
+  eq('saveDateField 用 POST', w.method, 'POST');
+  eq('saveDateField 是表单编码，不是 JSON 请求体', w.headers['Content-Type'], 'application/x-www-form-urlencoded');
+  eq('saveDateField 带 X-Requested-With', w.headers['X-Requested-With'], 'XMLHttpRequest');
+  ok('saveDateField 表单里只有 fieldValueList 一个键', /^fieldValueList=[^&]+$/.test(w.body), w.body);
+  eq('saveDateField fieldValueList 形状与云效前端一致',
+    formList(w.body), [{ fieldIdentifier: 'D80', value: '2026-09-18 00:00:00' }]);
+  ok('saveDateField 空格按 %20 编码（与云效抓包一致）', w.body.indexOf('%2000%3A00%3A00') > 0, w.body);
+  ok('saveDateField 不碰工时专用接口', ws.every((c) => !/\/workitem\/workitem\/time/.test(c.url)));
+  ok('saveDateField 写前读 + 写后复核', sandbox.fetch.calls.filter((c) => isRead(c.url)).length >= 2);
+}
+
+// 13b.4 CSRF：页面内联脚本里有 csrfToken 就带上，没有就不带（content script 读不到页面变量，只能读 DOM）
+{
+  const realDoc = sandbox.document;
+  sandbox.document = Object.assign({}, realDoc, {
+    querySelectorAll: (sel) => (sel === 'script:not([src])'
+      ? [{ textContent: 'window.foo = 1;' }, { textContent: 'window.cdn="x/3.3.797/"; window.csrfToken = "tok-ABC_123-xyz";' }]
+      : [])
+  });
+  eq('pageCsrfToken 从内联脚本抠出 window.csrfToken', api.pageCsrfToken(), 'tok-ABC_123-xyz');
+  let stored = '2026-09-16 00:00:00';
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem(stored) : (stored = '2026-09-18 00:00:00', { json: { code: 200 } })));
+  await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 带上页面的 X-Csrf-Token', writesOf(sandbox.fetch.calls)[0].headers['X-Csrf-Token'], 'tok-ABC_123-xyz');
+
+  sandbox.document = Object.assign({}, realDoc, {
+    querySelectorAll: () => [{ textContent: 'var config = {"csrfToken":"tok-json-style-1"};' }]
+  });
+  eq('pageCsrfToken 也认 JSON 写法', api.pageCsrfToken(), 'tok-json-style-1');
+
+  sandbox.document = realDoc;
+  eq('pageCsrfToken 读不到时返回空串', api.pageCsrfToken(), '');
+  stored = '2026-09-16 00:00:00';
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem(stored) : (stored = '2026-09-18 00:00:00', { json: { code: 200 } })));
+  await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  ok('saveDateField 读不到 token 时不带这个头（不发空值）',
+    !('X-Csrf-Token' in writesOf(sandbox.fetch.calls)[0].headers));
+}
+
+// 13b.5 云效拒绝 → 明确失败，只发一次，带云效原话和 traceId
+{
+  sandbox.fetch = makeFetchStub((u) =>
+    (isRead(u) ? dateItem('2026-09-16 00:00:00') : { json: { code: 400, errorMsg: '计划开始时间不能晚于计划完成时间', traceId: 'tid-d1' } }));
+  const r = await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 被拒时 ok=false', r.ok, false);
+  eq('saveDateField 被拒时只发一次', writesOf(sandbox.fetch.calls).length, 1);
+  ok('saveDateField 失败详情带云效原话', String(r.error).indexOf('不能晚于') >= 0, r.error);
+  ok('saveDateField 失败详情带 traceId', String(r.attempts[0]).indexOf('tid-d1') >= 0, r.attempts);
+}
+
+// 13b.6 回了 200 但复核读到的还是旧值 → 必须报失败（赋值重试无害，报成功会让界面记住一个没落库的日期）
+{
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem('2026-09-16 00:00:00') : { json: { code: 200 } }));
+  const r = await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 复核不一致时报失败，不静默成功', r.ok, false);
+  ok('saveDateField 复核失败说清读到的是什么', String(r.error).indexOf('2026-09-16') >= 0, r.error);
+  eq('saveDateField 复核失败也只写了一次', writesOf(sandbox.fetch.calls).length, 1);
+  ok('saveDateField 复核会多读几次再下结论',
+    sandbox.fetch.calls.filter((c) => isRead(c.url)).length >= 3);
+}
+
+// 13b.7 原来没值（customFields 里整条缺失）→ 照常写
+{
+  let stored = null;
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? dateItem(stored) : (stored = '2026-09-18 00:00:00', { json: { code: 200 } })));
+  const r = await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 原来没值时照常写入', [r.ok, r.from], [true, null]);
+}
+
+// 13b.8 非法日期 / 没有字段 id / 工作项读不到 → 一律不写
+{
+  sandbox.fetch = makeFetchStub(() => ({ json: { code: 200 } }));
+  for (const bad of ['2026-02-30', '2026/09/18', '', '2026-9-18', '2026-09-18 00:00:00']) {
+    const r = await api.saveDateField('w1', 'D80', bad, { dryRun: false });
+    ok('saveDateField 拒绝非法日期 ' + JSON.stringify(bad), r.ok === false, r);
+  }
+  eq('saveDateField 拒绝非法日期时一个请求都不发', sandbox.fetch.calls.length, 0);
+  const nf = await api.saveDateField('w1', '', '2026-09-18', { dryRun: false });
+  eq('saveDateField 没有字段 id 时拒绝', nf.ok, false);
+
+  sandbox.fetch = makeFetchStub((u) => (isRead(u) ? { json: { code: 200, result: [] } } : { json: { code: 200 } }));
+  const gone = await api.saveDateField('w-gone', 'D80', '2026-09-18', { dryRun: false });
+  eq('saveDateField 重读不到工作项时不写', [gone.ok, writesOf(sandbox.fetch.calls).length], [false, 0]);
+}
+
+// 13b.9 未登录是致命错，直接抛出
+{
+  sandbox.fetch = makeFetchStub(() => ({ status: 200, json: { code: 401, errorMsg: '未登录' } }));
+  let threw = null;
+  try { await api.saveDateField('w1', 'D80', '2026-09-18', { dryRun: false }); } catch (e) { threw = e; }
+  ok('saveDateField 未登录时抛错', threw !== null);
 }
 
 sandbox.fetch = () => Promise.reject(new Error('smoke-test 不联网'));
@@ -1647,6 +1795,78 @@ const GROUPS = [
 }
 
 /* ------------------------------------------------------------------ *
+ * 17. 改了计划日期后的本地快照同步
+ *     工作项可能换了归属区间：命中的快照要重算 date、出区间就删行；
+ *     新日期落进来却没有这一行的快照补不了，只能整份作废
+ *     （放在最后并先清空存储：快照最多留 12 份，别和前面的用例互相挤掉）
+ * ------------------------------------------------------------------ */
+
+{
+  await store.clear();
+  const row = (id, planStart, planEnd, date) => ({ id, planStart, planEnd, date, est: 1 });
+  const snaps = {
+    week: { savedAt: 9001, start: '2031-03-10', end: '2031-03-16', dateBasis: 'planEnd',
+      rows: [row('d1', '2031-03-10', '2031-03-12', '2031-03-12'), row('d2', '2031-03-11', '2031-03-13', '2031-03-13')] },
+    month: { savedAt: 9002, start: '2031-03-01', end: '2031-03-31', dateBasis: 'planEnd',
+      rows: [row('d1', '2031-03-10', '2031-03-12', '2031-03-12')] },
+    nextWeek: { savedAt: 9003, start: '2031-03-17', end: '2031-03-23', dateBasis: 'planEnd',
+      rows: [row('other', null, '2031-03-18', '2031-03-18')] },
+    byStart: { savedAt: 9004, start: '2031-03-10', end: '2031-03-16', dateBasis: 'planStart',
+      rows: [row('d1', '2031-03-10', '2031-03-12', '2031-03-10')] },
+    byFinish: { savedAt: 9005, start: '2031-03-10', end: '2031-03-16', dateBasis: 'finishTime',
+      rows: [row('d1', '2031-03-10', '2031-03-12', '2031-03-11')] },
+    lastMonth: { savedAt: 9006, start: '2031-02-01', end: '2031-02-28', dateBasis: 'planEnd',
+      rows: [row('other2', null, '2031-02-10', '2031-02-10')] }
+  };
+  for (const k of Object.keys(snaps)) await store.setRangeSnapshot(k, snaps[k]);
+
+  // d1 的计划完成从 03-12 挪到下周 03-19
+  const res = await store.patchRangeSnapshots([{ id: 'd1', planEnd: '2031-03-19' }]);
+  eq('快照同步：返回改动 / 命中 / 作废数', res, { snapshots: 4, rows: 4, dropped: 1 });
+
+  const week = await store.getRangeSnapshot('week');
+  eq('快照同步：本周快照按计划完成口径把移出区间的行删掉', week.rows.map((r) => r.id), ['d2']);
+  eq('快照同步：不改 savedAt（局部同步不能冒充全量刷新）', week.savedAt, 9001);
+
+  const month = await store.getRangeSnapshot('month');
+  eq('快照同步：仍在区间内的行更新日期并重算归集日', [month.rows[0].planEnd, month.rows[0].date], ['2031-03-19', '2031-03-19']);
+
+  eq('快照同步：新日期落进来但缺这一行的快照整份作废（补不回来）', await store.getRangeSnapshot('nextWeek'), null);
+
+  const byStart = await store.getRangeSnapshot('byStart');
+  eq('快照同步：计划开始口径的快照只改字段，不挪归属',
+    [byStart.rows.length, byStart.rows[0].planEnd, byStart.rows[0].date], [1, '2031-03-19', '2031-03-10']);
+
+  const byFinish = await store.getRangeSnapshot('byFinish');
+  eq('快照同步：实际完成口径的快照只改字段，不挪归属',
+    [byFinish.rows.length, byFinish.rows[0].planEnd, byFinish.rows[0].date], [1, '2031-03-19', '2031-03-11']);
+
+  eq('快照同步：不相干区间的快照原样保留', (await store.getRangeSnapshot('lastMonth')).rows[0].id, 'other2');
+
+  // 按计划开始口径挪进 / 挪出
+  await store.clear();
+  await store.setRangeSnapshot('s-week', { savedAt: 1, start: '2031-03-10', end: '2031-03-16', dateBasis: 'planStart',
+    rows: [row('d9', '2031-03-10', '2031-03-20', '2031-03-10')] });
+  await store.patchRangeSnapshots([{ id: 'd9', planStart: '2031-03-09' }]);
+  eq('快照同步：计划开始口径下挪出区间同样删行', (await store.getRangeSnapshot('s-week')).rows.length, 0);
+
+  // 只改工时时行为和以前完全一样：没有日期就不会删行、不会作废任何快照
+  await store.clear();
+  await store.setRangeSnapshot('h-week', { savedAt: 1, start: '2031-03-10', end: '2031-03-16', dateBasis: 'planEnd',
+    rows: [row('d1', '2031-03-10', '2031-03-12', '2031-03-12')] });
+  await store.setRangeSnapshot('h-next', { savedAt: 2, start: '2031-03-17', end: '2031-03-23', dateBasis: 'planEnd', rows: [] });
+  eq('快照同步：只改工时不删行也不作废', await store.patchRangeSnapshots([{ id: 'd1', est: 3 }]),
+    { snapshots: 1, rows: 1, dropped: 0 });
+  ok('快照同步：只改工时时别的区间快照还在', !!(await store.getRangeSnapshot('h-next')));
+
+  // 没有起止日期的旧快照判断不了归属，维持原样
+  await store.clear();
+  await store.setRangeSnapshot('legacy', { savedAt: 1, rows: [{ id: 'x' }] });
+  eq('快照同步：没有起止日期的快照不作废', (await store.patchRangeSnapshots([{ id: 'd1', planEnd: '2031-03-19' }])).dropped, 0);
+  ok('快照同步：没有起止日期的快照还在', !!(await store.getRangeSnapshot('legacy')));
+}
+
+/* ------------------------------------------------------------------ *
  * 结果
  * ------------------------------------------------------------------ */
 
@@ -1657,4 +1877,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log('✓ 冒烟测试全绿：' + pass + ' 项断言通过');
-console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / store / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');
+console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / store / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / api.saveDateField(计划日期写入·拦截式抓包端点) / store.patchRangeSnapshots(改日期换区间) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');

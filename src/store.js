@@ -510,20 +510,39 @@
     });
   }
 
+  const PLAN_DATE_KEYS = ['planStart', 'planEnd'];
+
+  function inSnapshotRange(ymd, snapshot) {
+    if (!ymd) return false;
+    if (snapshot.start && ymd < snapshot.start) return false;
+    if (snapshot.end && ymd > snapshot.end) return false;
+    return true;
+  }
+
   /**
-   * 写回云效成功后，把已知的新工时同步进所有命中该工作项的本地快照。
+   * 写回云效成功后，把已知的新值（工时、计划日期）同步进所有命中该工作项的本地快照。
    * 不改 savedAt：它表示整段数据最后一次从云效完整拉取的时间，不能被一次局部写回冒充成全量刷新。
+   *
+   * 计划日期改了，工作项可能换了归属区间，只改字段值会让快照统计错：
+   *   - 含这一行的快照：按该快照自己的归集口径重算 date，落到区间外就把这一行删掉；
+   *   - 不含这一行、但新日期正落在它区间里的快照：缺的正是这一行，而这里补不回来
+   *     （不知道那份快照的成员里有没有这个负责人），只能整份作废，下次访问时重新拉取。
+   * 返回 {snapshots: 改动的快照数, rows: 命中的行数, dropped: 作废的快照数}
    */
   function patchRangeSnapshots(patches) {
+    const has = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
     const byId = {};
     (Array.isArray(patches) ? patches : []).forEach(function (patch) {
       const id = String(patch && patch.id || '');
       if (!id) return;
       const next = byId[id] || (byId[id] = { id: id });
-      if (Object.prototype.hasOwnProperty.call(patch, 'est')) next.est = Number(patch.est) || 0;
-      if (Object.prototype.hasOwnProperty.call(patch, 'act')) next.act = Number(patch.act) || 0;
+      if (has(patch, 'est')) next.est = Number(patch.est) || 0;
+      if (has(patch, 'act')) next.act = Number(patch.act) || 0;
+      PLAN_DATE_KEYS.forEach(function (k) {
+        if (has(patch, k)) next[k] = patch[k] ? String(patch[k]) : null;
+      });
     });
-    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0 });
+    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0, dropped: 0 });
 
     return enqueue(function () {
       return rawGet().then(function (raw) {
@@ -531,25 +550,47 @@
         const all = clone(cfg.rangeSnapshots);
         let snapshotCount = 0;
         let rowCount = 0;
+        let dropped = 0;
 
         Object.keys(all).forEach(function (key) {
           const snapshot = all[key];
           if (!snapshot || !Array.isArray(snapshot.rows)) return;
-          let touched = false;
-          snapshot.rows.forEach(function (row) {
+          const basis = snapshot.dateBasis || 'planEnd';
+          const hit = {};
+          let hitCount = 0;
+          snapshot.rows = snapshot.rows.filter(function (row) {
             const patch = byId[String(row && row.id || '')];
-            if (!patch) return;
-            if (Object.prototype.hasOwnProperty.call(patch, 'est')) row.est = patch.est;
-            if (Object.prototype.hasOwnProperty.call(patch, 'act')) row.act = patch.act;
-            touched = true;
-            rowCount++;
+            if (!patch) return true;
+            hit[patch.id] = true;
+            hitCount++;
+            if (has(patch, 'est')) row.est = patch.est;
+            if (has(patch, 'act')) row.act = patch.act;
+            PLAN_DATE_KEYS.forEach(function (k) {
+              if (has(patch, k)) row[k] = patch[k];
+            });
+            // 实际完成口径（finishTime）的归属不看计划日期，改了也不挪
+            if (!has(patch, basis)) return true;
+            row.date = patch[basis];
+            return inSnapshotRange(row.date, snapshot);
           });
-          if (touched) snapshotCount++;
+          // 没有起止日期的快照判断不了新日期落不落在里面，维持原样
+          const missesRow = !!(snapshot.start && snapshot.end) && Object.keys(byId).some(function (id) {
+            return !hit[id] && has(byId[id], basis) && inSnapshotRange(byId[id][basis], snapshot);
+          });
+          if (missesRow) {
+            delete all[key];
+            dropped++;
+            return;
+          }
+          if (hitCount) {
+            snapshotCount++;
+            rowCount += hitCount;
+          }
         });
 
-        if (!snapshotCount) return { snapshots: 0, rows: 0 };
+        if (!snapshotCount && !dropped) return { snapshots: 0, rows: 0, dropped: 0 };
         return rawSet({ rangeSnapshots: all }).then(function () {
-          return { snapshots: snapshotCount, rows: rowCount };
+          return { snapshots: snapshotCount, rows: rowCount, dropped: dropped };
         });
       });
     });

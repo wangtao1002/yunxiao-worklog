@@ -390,3 +390,92 @@ XMLHttpRequest.prototype.send = function (b) {
 ```
 
 测试见 `tools/smoke-test.mjs` 13.4 / 13.6。
+
+
+---
+
+# ✅ 计划开始 / 计划完成时间的写入端点（2026-09-15，拦截式抓包）
+
+## 抓包方式：只录不放行
+
+之前的抓包是「钩子录下来、请求照常发出去」，需要用户真改一次数据。
+这次改成**录下来并就地拦掉**：钩子对非 GET 的云效请求只记录、不调用原始 `send` / `fetch`，
+直接给调用方回一个网络错误。云效界面会自己退回原值，服务端什么都没收到。
+
+```js
+// 在云效页面控制台（页面上下文）里跑。只放行两个读接口，其余非 GET 一律录下并拦截
+(() => {
+  window.__yxcap = [];
+  const ALLOW = [/\/workitem\/workitem\/list(\?|$)/, /\/workitem\/workitem\/group\/list(\?|$)/];
+  const block = (m, u) => {
+    if (/^(GET|HEAD|OPTIONS)$/i.test(m || 'GET')) return false;
+    const url = new URL(u, location.href);
+    return url.hostname === 'devops.aliyun.com' && !ALLOW.some((re) => re.test(url.pathname + url.search));
+  };
+  const P = XMLHttpRequest.prototype, oo = P.open, os = P.send, oh = P.setRequestHeader;
+  P.open = function (m, u) { this.__m = m; this.__u = u; this.__h = {}; return oo.apply(this, arguments); };
+  P.setRequestHeader = function (k, v) { this.__h[k] = v; return oh.apply(this, arguments); };
+  P.send = function (b) {
+    if (!block(this.__m, this.__u)) return os.apply(this, arguments);
+    window.__yxcap.push({ m: this.__m, u: this.__u, h: this.__h, body: b });
+    setTimeout(() => this.dispatchEvent(new ProgressEvent('error')), 0);   // 不发，只报错
+  };
+  const of = window.fetch;
+  window.fetch = function (i, n) {
+    const u = typeof i === 'string' ? i : (i && i.url) || '';
+    const m = (n && n.method) || 'GET';
+    if (!block(m, u)) return of.apply(this, arguments);
+    window.__yxcap.push({ m, u, h: n && n.headers, body: n && n.body });
+    return Promise.reject(new TypeError('blocked'));
+  };
+  return '只录不放行';
+})();
+```
+
+先自己发一个假的 POST 确认两条通路都被拦住，再去界面上改。**用完刷新页面把钩子卸掉**，
+否则这个标签页里后续的一切修改都会静默失败。
+
+## 实录结果
+
+在工作项列表页点「计划完成时间」单元格、选一个新日期，云效（走 axios / XHR）发的是：
+
+```
+POST /projex/api/workitem/workitem/field/value/{workitemIdentifier}?_input_charset=utf-8
+Content-Type: application/x-www-form-urlencoded
+X-Csrf-Token: <页面的 window.csrfToken>
+X-Requested-With: XMLHttpRequest
+
+fieldValueList=%5B%7B%22fieldIdentifier%22%3A%2280%22%2C%22value%22%3A%222026-09-18%2000%3A00%3A00%22%7D%5D
+```
+
+URL 解码后就是 `fieldValueList=[{"fieldIdentifier":"80","value":"2026-09-18 00:00:00"}]`。
+改「计划开始时间」只是 `fieldIdentifier` 换成 `79`，其它完全一样。刷新页面后原日期没变，证明请求确实没出去。
+
+要点：
+
+- **路径就是 API-RESEARCH 第 5 节扫出来的 `field/value/{id}`，但请求体是表单**，
+  里面塞一个 JSON 字符串，不是 JSON 请求体。bundle 里这条路由的定义也写着
+  `contentType: "application/x-www-form-urlencoded"`（`updateWorkitemAttributeValue`）。
+- **赋值语义**：不是工时那样的「追加一条记录」，重复提交同一个值不会叠加。
+- **日期一律带 ` 00:00:00`**，和读接口 `customFields` 里的格式一致。
+- **CSRF**：云效前端的 axios 拦截器给每个请求都加 `X-Csrf-Token = window.csrfToken`，
+  这个变量由页面内联脚本赋值（公开 bundle 里只读不赋）。content script 在隔离环境里读不到页面变量，
+  所以插件从 DOM 的内联 `<script>` 文本里按 `csrfToken = "..."` / `"csrfToken":"..."` 抠；抠不到就不带。
+  **实测这个接口不强制校验**（见下面真实写入验证的第 2 次写入），带上只是为了和云效自己发的请求保持一致。
+- 清空日期（输入框里的 ✕）这次没录到请求，插件**不支持清空**，不猜形状。
+
+## 真实写入验证（2026-09-15，经用户授权，一条自己负责的待处理任务，写完即改回）
+
+直接在已登录的云效页面里执行 `src/api.js` 原文（独立命名空间，不碰已装的插件），对 BOAU-5「计划完成时间」（字段 80）：
+
+| 步骤 | 调用 | 结果 | 第二证（刷新云效列表页） |
+|---|---|---|---|
+| 预检 | `saveDateField(id,'80','2026-09-17')`（默认预演） | `dryRun`，`from '2026-09-16 00:00:00'`，零写请求；DOM 里抠到 36 位 token | — |
+| 写 1 | 同上 `{dryRun:false}`，**带** X-Csrf-Token | `ok`，写后重读复核通过，耗时约 1.4s | 计划完成显示 `2026-09-17` |
+| 写 2 | 改回 `'2026-09-16'`，**故意不带** X-Csrf-Token | `ok`，复核通过 | 计划开始 / 完成均为 `2026-09-16`；接口读回 `79=80=2026-09-16 00:00:00` |
+
+结论：端点、表单体、日期格式全部对得上；写前读 + 写 + 复核读回新值，整个调用约 1.4s 就返回成功，
+没有出现工时汇总那种迟迟读不到新值的情况；CSRF 头不是必需的。
+
+代码见 `src/api.js` 的 `saveDateField`，测试见 `tools/smoke-test.mjs` 第 13b 节
+（路径 / 表单体 / 请求头 / CSRF / 复核不一致报失败 / 非法日期不发请求）与第 17 节（写回后快照换区间）。

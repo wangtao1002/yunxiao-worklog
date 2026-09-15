@@ -35,7 +35,8 @@
     { key: 'assignee', label: '负责人', cls: 'yxp-c-assignee' },
     { key: 'est', label: '预计', cls: 'yxp-c-num', editable: 'est' },
     { key: 'act', label: '实际', cls: 'yxp-c-num', editable: 'act' },
-    { key: 'planEnd', label: '计划完成', cls: 'yxp-c-date' },
+    { key: 'planStart', label: '计划开始', cls: 'yxp-c-date', editable: 'planStart' },
+    { key: 'planEnd', label: '计划完成', cls: 'yxp-c-date', editable: 'planEnd' },
     { key: '__open', label: '打开', cls: 'yxp-c-open', sortable: false }
   ];
 
@@ -48,7 +49,7 @@
     '  --yxp-good:#0e9d68;--yxp-warn:#dd8400;--yxp-bad:#e04437;',
     '  --yxp-h0:#eef1f7;--yxp-h1:#d6e2ff;--yxp-h2:#a8c3ff;--yxp-h3:#6f9bff;--yxp-h4:#2f6bff;',
     '  --yxp-h4-text:#ffffff;--yxp-h3-text:#ffffff;',
-    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;',
+    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;--yxp-scheme:light;',
     '  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;',
     '}',
     '@media (prefers-color-scheme:dark){',
@@ -60,7 +61,7 @@
     '    --yxp-good:#3fc08c;--yxp-warn:#f0a53a;--yxp-bad:#ff6b5c;',
     '    --yxp-h0:#232833;--yxp-h1:#25355a;--yxp-h2:#2f4a86;--yxp-h3:#3b62b8;--yxp-h4:#5b8cff;',
     '    --yxp-h4-text:#0d1220;--yxp-h3-text:#eaf0ff;',
-    '    --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;',
+    '    --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;--yxp-scheme:dark;',
     '  }',
     '}',
     // [data-theme] 显式覆盖，优先级高于系统偏好
@@ -72,7 +73,7 @@
     '  --yxp-good:#0e9d68;--yxp-warn:#dd8400;--yxp-bad:#e04437;',
     '  --yxp-h0:#eef1f7;--yxp-h1:#d6e2ff;--yxp-h2:#a8c3ff;--yxp-h3:#6f9bff;--yxp-h4:#2f6bff;',
     '  --yxp-h4-text:#ffffff;--yxp-h3-text:#ffffff;',
-    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;',
+    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;--yxp-scheme:light;',
     '}',
     ':host([data-theme="dark"]) .yxp-root{',
     '  --yxp-bg:#161a21;--yxp-bg-sub:#1d222b;--yxp-bg-soft:#1a1f27;',
@@ -82,7 +83,7 @@
     '  --yxp-good:#3fc08c;--yxp-warn:#f0a53a;--yxp-bad:#ff6b5c;',
     '  --yxp-h0:#232833;--yxp-h1:#25355a;--yxp-h2:#2f4a86;--yxp-h3:#3b62b8;--yxp-h4:#5b8cff;',
     '  --yxp-h4-text:#0d1220;--yxp-h3-text:#eaf0ff;',
-    '  --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;',
+    '  --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;--yxp-scheme:dark;',
     '}',
     '.yxp-hidden{display:none !important;}',
     '.yxp-root *{box-sizing:border-box;}',
@@ -225,7 +226,7 @@
     '  position:sticky;top:0;z-index:3;}',
     // 必须给 wrap 定高：否则它自身永远不纵向溢出，th 的 sticky 偏移不触发，表头会随整页滚走
     '.yxp-tablewrap{overflow:auto;max-height:52vh;border:1px solid var(--yxp-border);border-radius:12px;}',
-    '.yxp-table{border-collapse:collapse;width:100%;min-width:940px;font-size:12px;}',
+    '.yxp-table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12px;}',
     '.yxp-table th{position:sticky;top:0;z-index:1;background:var(--yxp-bg-sub);color:var(--yxp-text-dim);',
     '  font-weight:600;text-align:left;padding:8px 10px;white-space:nowrap;cursor:pointer;',
     '  border-bottom:1px solid var(--yxp-border);}',
@@ -245,7 +246,7 @@
     '.yxp-c-status{width:96px;}',
     '.yxp-c-assignee{width:90px;color:var(--yxp-text-dim);}',
     '.yxp-c-num{width:78px;text-align:right;font-variant-numeric:tabular-nums;}',
-    '.yxp-c-date{width:104px;color:var(--yxp-text-dim);font-variant-numeric:tabular-nums;}',
+    '.yxp-c-date{width:132px;color:var(--yxp-text-dim);font-variant-numeric:tabular-nums;}',
     '.yxp-c-open{width:56px;text-align:center;}',
     '.yxp-pill{display:inline-block;padding:1px 8px;border-radius:20px;background:var(--yxp-bg-sub);',
     '  color:var(--yxp-text-dim);font-size:11px;white-space:nowrap;}',
@@ -254,6 +255,8 @@
     '  font-variant-numeric:tabular-nums;}',
     '.yxp-actinput:focus{outline:none;border-color:var(--yxp-primary);}',
     '.yxp-actinput.miss{border-color:var(--yxp-bad);color:var(--yxp-bad);font-weight:600;}',
+    // 原生日期框的日历图标跟 color-scheme 走，不跟面板主题变量走，暗色下要单独切
+    '.yxp-dateinput{width:120px;text-align:left;color-scheme:var(--yxp-scheme);}',
     '.yxp-miss{color:var(--yxp-bad);font-weight:600;}',
     '.yxp-check{display:inline-flex;align-items:center;gap:5px;color:var(--yxp-text-dim);',
     '  font-size:12px;cursor:pointer;user-select:none;}',
@@ -302,8 +305,8 @@
     snapshotKey: '',
     truncated: false,
     // 编辑状态按「行 + 字段」两级存，只放真正改过的字段（详见 numCell / setEdit 附近的说明）
-    edits: {},              // {rowId: {est?: 新预计工时, act?: 新实际工时}}
-    failed: {},             // {'rowId|est' / 'rowId|act': 错误文案}，键由 failKey() 拼
+    edits: {},              // {rowId: {est?/act?: 工时数值, planStart?/planEnd?: 'YYYY-MM-DD'}}
+    failed: {},             // {'rowId|est' / 'rowId|planEnd' …: 错误文案}，键由 failKey() 拼
     sortKey: 'planEnd',
     sortDir: 'desc',
     search: '',
@@ -1667,18 +1670,22 @@
 
   /* ---------------------------------------------------------------- 明细表 */
 
-  /** 明细表当前该显示哪几列：只用预计就不摆实际那一列，反之亦然 */
+  /**
+   * 明细表当前该显示哪几列：只用预计就不摆实际那一列，反之亦然。
+   * 计划开始时间没识别出来时整列都是空的，不摆（计划完成是默认归集口径，一直留着）。
+   */
   function visibleColumns() {
     return COLUMNS.filter(function (c) {
       if (c.key === 'est') return usesEst();
       if (c.key === 'act') return usesAct();
+      if (c.key === 'planStart') return !!rawFieldOf('planStart');
       return true;
     });
   }
 
   function renderTable() {
     const sec = clear(refs.secTable);
-    // 「能不能编辑」现在是按列判断的（预计 / 实际各自看字段有没有识别出来）
+    // 「能不能编辑」是按列判断的（预计 / 实际 / 两个计划日期各自看字段有没有识别出来）
     const canEditAct = canEditField('act');
     const canEdit = canEditAct || canEditField('est');
 
@@ -1745,11 +1752,15 @@
       add(bar, el('span', 'yxp-note',
         '「预计工时」和「实际工时」指向了同一个字段，已禁用「预计」列编辑（同时写会互相覆盖）。请到设置页修正映射。'));
     } else if (!canEdit) {
-      add(bar, el('span', 'yxp-note', '未识别到工时字段，明细只读。可到设置页手动指定。'));
+      add(bar, el('span', 'yxp-note', '未识别到工时字段，工时列只读。可到设置页手动指定。'));
     } else if (!canEditAct && usesAct()) {
       add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('act') + '」字段，这一列只读。'));
     } else if (!canEditField('est') && usesEst()) {
       add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('est') + '」字段，这一列只读。'));
+    }
+    if (dateFieldConflict()) {
+      add(bar, el('span', 'yxp-note',
+        '「计划开始时间」和「计划完成时间」指向了同一个字段，已禁用「计划开始」列编辑。请到设置页修正映射。'));
     }
     add(sec, bar);
 
@@ -1888,7 +1899,8 @@
     if (usesEst()) add(tr, numCell(r, 'est', tr));
     if (usesAct()) add(tr, numCell(r, 'act', tr));
 
-    add(tr, el('td', 'yxp-c-date', r.planEnd || '—'));
+    if (rawFieldOf('planStart')) add(tr, dateCell(r, 'planStart', tr));
+    add(tr, dateCell(r, 'planEnd', tr));
 
     const tdOpen = el('td', 'yxp-c-open');
     if (r.url) {
@@ -1937,11 +1949,36 @@
     return td;
   }
 
-  // 编辑状态按「行 + 字段」两级存：state.edits[rowId] = { est?: 数值, act?: 数值 }
-  // 只放真正改过的字段。失败原因按 rowId|字段 存，避免一行两个字段互相覆盖错误提示。
+  /** 计划日期单元格：字段识别得出来就是原生日期框，否则只读 */
+  function dateCell(r, which, tr) {
+    const td = el('td', 'yxp-c-date');
+    if (!canEditField(which)) {
+      td.textContent = r[which] || '—';
+      return td;
+    }
+    const inp = el('input', 'yxp-actinput yxp-dateinput');
+    inp.type = 'date';
+    inp.value = effectiveDate(r, which) || '';
+    inp.disabled = !!state.submitting;
+    const f = fieldOf(which);
+    inp.title = f.name + ' 原值 ' + (r[which] || '空') + '（不支持在这里清空）';
+    inp.setAttribute('aria-label', f.name + '（' + (r.sn || r.id) + '）');
+    inp.oninput = function () { onDateInput(r, which, inp, tr); };
+    inp.onblur = function () { onDateBlur(r, which, inp, tr); };
+    add(td, inp);
+    const err = state.failed[failKey(r.id, which)];
+    if (err) add(td, el('div', 'yxp-err', truncate(err, 28)));
+    return td;
+  }
+
+  // 编辑状态按「行 + 字段」两级存：state.edits[rowId] = { est?, act?, planStart?, planEnd? }
+  // 只放真正改过的字段。失败原因按 rowId|字段 存，避免一行几个字段互相覆盖错误提示。
+  // kind 决定走哪个写接口：工时是专用的记录接口，日期是普通字段赋值（见 api.js）。
   const EDITABLE = [
-    { which: 'est', mapKey: 'estimated', label: '预计工时' },
-    { which: 'act', mapKey: 'actual', label: '实际工时' }
+    { which: 'est', mapKey: 'estimated', label: '预计工时', kind: 'hours' },
+    { which: 'act', mapKey: 'actual', label: '实际工时', kind: 'hours' },
+    { which: 'planStart', mapKey: 'planStart', label: '计划开始时间', kind: 'date' },
+    { which: 'planEnd', mapKey: 'planEnd', label: '计划完成时间', kind: 'date' }
   ];
 
   function rawFieldOf(which) {
@@ -1961,8 +1998,16 @@
     return !!(e && a && e.id === a.id);
   }
 
+  // 两个计划日期指向同一字段同理：只保留「计划完成」可编辑（它是默认归集口径）
+  function dateFieldConflict() {
+    const s = rawFieldOf('planStart');
+    const e = rawFieldOf('planEnd');
+    return !!(s && e && s.id === e.id);
+  }
+
   function fieldOf(which) {
     if (which === 'est' && fieldIdConflict()) return null;
+    if (which === 'planStart' && dateFieldConflict()) return null;
     return rawFieldOf(which);
   }
 
@@ -2000,6 +2045,13 @@
     return Number(r[which]) || 0;
   }
 
+  /** 计划日期的当前值（含本地未提交的改动）：'YYYY-MM-DD' 或 null */
+  function effectiveDate(r, which) {
+    const e = editsOf(r);
+    if (e && has(e, which)) return e[which];
+    return r[which] || null;
+  }
+
   function setEdit(r, which, value) {
     let e = editsOf(r);
     if (value === null) {
@@ -2032,12 +2084,7 @@
       if (rounded === cur) setEdit(r, which, null);
       else setEdit(r, which, rounded);
     }
-    delete state.failed[failKey(r.id, which)];
-    // 失败提示是渲染时挂在这个单元格上的子节点，值一改就该跟着消失，
-    // 否则用户改完还看着红字，会以为又失败了一次而重复提交
-    const cell = inp.parentNode;
-    const errNode = cell && cell.querySelector ? cell.querySelector('.yxp-err') : null;
-    if (errNode && errNode.parentNode) errNode.parentNode.removeChild(errNode);
+    clearCellFailure(r, which, inp);
     tr.className = rowClass(r);
     // 补上预计工时后，「未填预计」卡片和警示条的数字要立刻跟着降
     if (which === 'est' && canWarnMissing()) renderOverview();
@@ -2045,6 +2092,63 @@
     // fillable 的判据里有 effective(r,'act')，编辑单元格会直接改变可填条数，
     // 按钮的文案和禁用态必须跟着走（syncFillBtn 只改 textContent/title/disabled，不抢焦点）
     syncFillBtn();
+  }
+
+  function clearCellFailure(r, which, inp) {
+    delete state.failed[failKey(r.id, which)];
+    // 失败提示是渲染时挂在这个单元格上的子节点，值一改就该跟着消失，
+    // 否则用户改完还看着红字，会以为又失败了一次而重复提交
+    const cell = inp.parentNode;
+    const errNode = cell && cell.querySelector ? cell.querySelector('.yxp-err') : null;
+    if (errNode && errNode.parentNode) errNode.parentNode.removeChild(errNode);
+  }
+
+  // 键盘逐位敲年份时，原生日期框会先吐出 0002-09-16、0020-09-16 这种中间值（都会触发 input），
+  // 这些既不能记成改动，也不能拿去判「开始晚于完成」，否则年份根本敲不完
+  function plausibleYMD(v) {
+    const m = /^(\d{4})-\d{2}-\d{2}$/.exec(v);
+    return !!m && Number(m[1]) >= 1970 && Number(m[1]) <= 2099;
+  }
+
+  /**
+   * 计划日期只在本地记改动，**不**跟着改归集日期、不挪日历格子：
+   * 写回成功之前它还不是云效上的事实，统计仍按云效上的原值算。
+   */
+  function onDateInput(r, which, inp, tr) {
+    const v = String(inp.value || '').trim();
+    if (v === '') {
+      setEdit(r, which, null);     // 不支持清空：清掉就当没改，失焦时框里恢复原值
+    } else {
+      if (!plausibleYMD(v)) return;
+      setEdit(r, which, v === (r[which] || '') ? null : v);
+    }
+    clearCellFailure(r, which, inp);
+    tr.className = rowClass(r);
+    renderEditBar();
+  }
+
+  /**
+   * 开始晚于完成的组合在失焦时退回本次改的这个日期：放在输入时判，逐位敲日期也会被误拦。
+   * 只在这个格子真有改动时才判——云效上原本就颠倒的数据，路过一下不该每次都弹错。
+   */
+  function onDateBlur(r, which, inp, tr) {
+    const e = editsOf(r);
+    const bad = e && has(e, which) ? datePairError(r) : '';
+    if (bad) {
+      setEdit(r, which, null);
+      tr.className = rowClass(r);
+      renderEditBar();
+      toast(bad, 'error');
+    }
+    inp.value = effectiveDate(r, which) || '';
+  }
+
+  function datePairError(r) {
+    const s = effectiveDate(r, 'planStart');
+    const e = effectiveDate(r, 'planEnd');
+    if (!s || !e || s <= e) return '';
+    return '「计划开始时间」（' + s + '）不能晚于「计划完成时间」（' + e + '）。' +
+      '要整体往后挪，先改计划完成；往前挪，先改计划开始。';
   }
 
   function sortRows(rows) {
@@ -2070,7 +2174,7 @@
   function sortVal(r, key) {
     if (key === 'est') return effective(r, 'est');
     if (key === 'act') return effective(r, 'act');
-    if (key === 'planEnd') return r.planEnd || '';
+    if (key === 'planEnd' || key === 'planStart') return effectiveDate(r, key) || '';
     return r[key] === null || r[key] === undefined ? '' : r[key];
   }
 
@@ -2081,17 +2185,34 @@
     state.rows.forEach(function (r) {
       const e = editsOf(r);
       if (!e) return;
+      const items = [];
       EDITABLE.forEach(function (x) {
         if (!has(e, x.which)) return;
         const f = fieldOf(x.which);
         if (!f) return;                              // 字段没识别出来就不提交
-        out.push({
-          row: r, which: x.which, fieldId: f.id, fieldLabel: x.label,
-          from: Number(r[x.which]) || 0, to: e[x.which]
+        items.push({
+          row: r, which: x.which, kind: x.kind, fieldId: f.id, fieldLabel: x.label,
+          from: x.kind === 'date' ? (r[x.which] || null) : (Number(r[x.which]) || 0),
+          to: e[x.which]
         });
       });
+      // 一行两个计划日期都改时是分两次写的，中间态也得是「开始 ≤ 完成」，免得云效拦下第二次。
+      // 默认先写开始；新开始晚于旧完成（整体往后挪）时必须先写完成。
+      const si = indexOfWhich(items, 'planStart');
+      const ei = indexOfWhich(items, 'planEnd');
+      if (si >= 0 && ei >= 0 && r.planEnd && items[si].to > r.planEnd) {
+        const tmp = items[si];
+        items[si] = items[ei];
+        items[ei] = tmp;
+      }
+      items.forEach(function (c) { out.push(c); });
     });
     return out;
+  }
+
+  function indexOfWhich(items, which) {
+    for (let i = 0; i < items.length; i++) if (items[i].which === which) return i;
+    return -1;
   }
 
   /** 把所有写入失败的诊断信息整理成一段纯文本，方便直接贴给开发者定位 */
@@ -2101,7 +2222,8 @@
     lines.push('# 云效工时统计 · 写入失败诊断');
     lines.push('插件版本: ' + pluginVersion());
     lines.push('组织: ' + ((state.ctx && (state.ctx.orgName || state.ctx.orgId)) || '未知'));
-    lines.push('字段映射: 预计=' + fieldSig(fm.estimated) + '  实际=' + fieldSig(fm.actual));
+    lines.push('字段映射: 预计=' + fieldSig(fm.estimated) + '  实际=' + fieldSig(fm.actual) +
+      '  计划开始=' + fieldSig(fm.planStart) + '  计划完成=' + fieldSig(fm.planEnd));
     lines.push('写入模式: ' + (isDryRun() ? '只读预演' : '真实写回'));
     lines.push('');
     Object.keys(state.failed).forEach(function (k) {
@@ -2253,12 +2375,35 @@
     return a + ' → ' + b;
   }
 
+  /**
+   * 真写这条日期后，和云效上另一个日期的现值（本批已写成功的会就地更新到 r 上）是否颠倒。
+   * 只用于真实写入：预演时 r 不更新，拿它判会把合法的第二条误拦下。
+   */
+  function invertsSavedPair(c) {
+    const other = c.which === 'planStart' ? c.row.planEnd : c.row.planStart;
+    if (!other) return false;
+    return c.which === 'planStart' ? c.to > other : c.to < other;
+  }
+
+  /** 这条日期改动写回后，按当前归集口径是否就不属于当前区间了 */
+  function leavesRange(c) {
+    return c.kind === 'date' && c.which === state.dateBasis && (c.to < state.start || c.to > state.end);
+  }
+
   async function submitEdits() {
     const list = changedList();
     if (!list.length) return;
     // changedList 已经把「字段没识别出来」的改动过滤掉了，这里只做兜底
     if (!state.fieldMap) {
-      toast('还没识别到工时字段，无法提交', 'error');
+      toast('还没识别到字段映射，无法提交', 'error');
+      return;
+    }
+    // 失焦时已经拦过，这里防的是焦点还在日期框里就点了提交之类的漏网情况。
+    // 只查改了日期的行：云效上原本就颠倒的数据不该挡住同一行的工时提交
+    const badPair = list.filter(function (c) { return c.kind === 'date'; })
+      .map(function (c) { return datePairError(c.row); }).filter(Boolean)[0];
+    if (badPair) {
+      toast(badPair, 'error');
       return;
     }
     const dryRun = isDryRun();
@@ -2268,14 +2413,20 @@
     const actNote = list.some(function (c) { return c.which === 'act'; })
       ? '\n注意：「实际工时」在云效里是工时登记的累加值，这里会为你补登记差额（只能增加，不能改小）。'
       : '';
+    const leaving = list.filter(leavesRange).length;
+    const moveNote = leaving
+      ? '\n注意：有 ' + leaving + ' 条改完「' + basisLabel(state.dateBasis) + '」后不在当前区间（' +
+        state.start + ' ~ ' + state.end + '），写回后会从本区间的统计里移出。'
+      : '';
     const lines = list.map(function (c) {
-      const base = '· ' + (c.row.sn || c.row.id) + ' ' + truncate(c.row.subject, 22) +
-        '  [' + c.fieldLabel + '] ' + changeText(c.from, c.to);
+      const base = '· ' + (c.row.sn || c.row.id) + ' ' + truncate(c.row.subject, 22) + '  [' + c.fieldLabel + '] ' +
+        (c.kind === 'date' ? (c.from || '空') + ' → ' + c.to : changeText(c.from, c.to));
+      if (c.kind === 'date') return base + (leavesRange(c) ? '（移出当前区间）' : '');
       if (c.which !== 'act') return base;
       const d = Math.round((Number(c.to) - Number(c.from)) * 10) / 10;
       return base + '（登记 +' + hours(d) + 'h）';
     });
-    const bodyText = '共 ' + list.length + ' 条改动，写入模式：' + (dryRun ? '只读预演（不会真正写回云效）' : '写回云效（不可撤销）') + '\n' + lines.join('\n') + actNote;
+    const bodyText = '共 ' + list.length + ' 条改动，写入模式：' + (dryRun ? '只读预演（不会真正写回云效）' : '写回云效（不可撤销）') + '\n' + lines.join('\n') + actNote + moveNote;
 
     // 标题必须说清这次到底要写哪几个字段：它是不可撤销写入前的第一眼信息，
     // 也是 confirmDialog 给读屏用的 aria-label（ui.js 用 title 当可访问名）。
@@ -2308,15 +2459,28 @@
     let failCount = 0;
     let unverifiedCount = 0;   // 写进去了但云效汇总还没刷新出来的条数
     const cachePatches = {};
+    const rebucketed = {};     // 归集日期被改掉的行，写完统一看还在不在当前区间
+    // 云效上原本就颠倒的行，怎么排顺序中间态都是颠倒的，不拦（拦了就永远改不回来）
+    const pairWasOk = {};
+    list.forEach(function (c) {
+      pairWasOk[c.row.id] = !(c.row.planStart && c.row.planEnd && c.row.planStart > c.row.planEnd);
+    });
     for (let i = 0; i < list.length; i++) {
       const c = list[i];
       let res = null;
       try {
-        res = await NS.api.saveWorkHours(c.row.id, c.which, c.to, {
-          dryRun: dryRun,
-          fieldId: c.fieldId,                       // 只用于读原值与写后复核
-          userId: state.ctx && state.ctx.userId
-        });
+        if (c.kind === 'date' && !dryRun && pairWasOk[c.row.id] && invertsSavedPair(c)) {
+          // changedList 排好了顺序，走到这里说明同一行先写的那个日期没写成功
+          res = { ok: false, error: '同一行另一个计划日期没写成功，这条先不写，免得云效上开始晚于完成' };
+        } else if (c.kind === 'date') {
+          res = await NS.api.saveDateField(c.row.id, c.fieldId, c.to, { dryRun: dryRun });
+        } else {
+          res = await NS.api.saveWorkHours(c.row.id, c.which, c.to, {
+            dryRun: dryRun,
+            fieldId: c.fieldId,                     // 只用于读原值与写后复核
+            userId: state.ctx && state.ctx.userId
+          });
+        }
       } catch (e) {
         res = { ok: false, error: errMsg(e) };
       }
@@ -2331,6 +2495,10 @@
           setEdit(c.row, c.which, null);
           const patch = cachePatches[c.row.id] || (cachePatches[c.row.id] = { id: c.row.id });
           patch[c.which] = c.to;
+          if (c.which === state.dateBasis) {
+            c.row.date = c.to;
+            rebucketed[c.row.id] = true;
+          }
         }
       } else {
         failCount++;
@@ -2355,14 +2523,16 @@
       }
     }
 
+    const moved = dropRowsOutOfRange(rebucketed);
+    const movedNote = moved
+      ? '；' + moved + ' 条的' + basisLabel(state.dateBasis) + '已不在当前区间，已移出本区间统计'
+      : '';
+
     state.submitting = false;
     state.submitProgress = null;
-    renderTable();
-    renderOverview();
-    // 日历热力图的格子数字/色深/「工时不足」描边全部按 r.est 算，真实写入会就地改掉 r.est，
-    // 不重绘就会出现「概览卡已经变了、日历还是旧数字」的同屏矛盾。
-    renderCalendar();
-    renderGroups();
+    // 概览 / 日历 / 分组 / 明细全部重绘：日历格子按 r.est 着色，真实写入会就地改掉 r.est；
+    // 改了计划日期的行还可能换了日子甚至移出区间。漏一块就会同屏两个数对不上。
+    renderAll();
 
     if (dryRun) {
       // 预演成功和真写成功长得太像，用户很容易以为已经写进去了，
@@ -2370,16 +2540,38 @@
       // 并且直接把「现在真写」这一步接上，不再打发人去设置页。
       await afterDryRun(okCount, skipCount, failCount);
     } else if (failCount) {
-      toast('提交完成：成功 ' + okCount + ' 条，失败 ' + failCount + ' 条（失败的行已标红，可修改后重试）', 'error');
+      toast('提交完成：成功 ' + okCount + ' 条，失败 ' + failCount + ' 条（失败的行已标红，可修改后重试）' + movedNote, 'error');
     } else if (unverifiedCount) {
       // 关键：这不是失败。云效工时汇总是异步算的，写完立刻读经常还是旧值。
       // 说成失败会诱导用户重试，而每重试一次就会在云效上多加一条工时记录。
       toast('已提交 ' + okCount + ' 条。其中 ' + unverifiedCount +
-        ' 条云效的工时汇总还没刷新出来（这是云效的异步延迟，不是失败）。' +
-        '过几秒刷新页面确认即可，千万不要重复提交——每提交一次就会多一条工时记录。', 'info');
+        ' 条云效还没刷新出新值（这是云效的异步延迟，不是失败）。' +
+        '过几秒刷新页面确认即可，工时千万不要重复提交——每提交一次就会多一条工时记录' + movedNote + '。', 'info');
     } else {
-      toast('提交完成：成功 ' + okCount + ' 条' + (skipCount ? '，' + skipCount + ' 条值未变化' : ''), 'success');
+      toast('提交完成：成功 ' + okCount + ' 条' + (skipCount ? '，' + skipCount + ' 条值未变化' : '') + movedNote, 'success');
     }
+  }
+
+  /**
+   * 写回后归集日期落到当前区间外的行，按口径已经不属于这个区间了，从本区间统计里拿掉
+   * （本地快照由 store.patchRangeSnapshots 同步处理）。还挂着别的改动或失败的行先留着，
+   * 不能让用户没提交成功的那部分跟着一起消失。
+   */
+  function dropRowsOutOfRange(ids) {
+    if (!Object.keys(ids).length) return 0;
+    const before = state.rows.length;
+    state.rows = state.rows.filter(function (r) {
+      if (!ids[r.id]) return true;
+      if (r.date && r.date >= state.start && r.date <= state.end) return true;
+      return isDirty(r) || EDITABLE.some(function (x) { return state.failed[failKey(r.id, x.which)]; });
+    });
+    const moved = before - state.rows.length;
+    if (!moved) return 0;
+    // 和 load() 一样：筛选条件下一条都不剩了就把筛选撤掉，别留一张莫名其妙的空表
+    const left = taskScopeRows();
+    if (state.dayFilter && left.every(function (r) { return r.date !== state.dayFilter; })) state.dayFilter = null;
+    if (state.missingOnly && !countMissing(left)) state.missingOnly = false;
+    return moved;
   }
 
   /**
@@ -2406,7 +2598,7 @@
     try {
       ok = await NS.ui.confirmDialog(refs.root, {
         title: '预演通过 —— 但还没有写入云效',
-        body: '刚才只是预演，云效上的工时一点都没改。\n\n' +
+        body: '刚才只是预演，云效上的数据一点都没改。\n\n' +
           '有 ' + okCount + ' 条可以写入。现在真正写回云效吗？\n' +
           '（写回后本次改动不可撤销；也可以到设置页把「写入模式」长期改成「允许写回云效」）',
         okText: '真正写回云效',

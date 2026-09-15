@@ -22,7 +22,7 @@
 
   window.YXWT = window.YXWT || {};
   window.YXWT.__version = "0.3.2";
-  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">任务状态范围<small>全部任务，或仅统计云效已标记完成的任务<\/small><\/div>\n      <div><select id=\"taskScope\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">达标工时口径<small>“工时偏差”和“截止今日工时偏差”拿哪组工时与工作日目标比较<\/small><\/div>\n      <div>\n        <select id=\"workDiffBasis\"><\/select>\n        <div class=\"hint\" id=\"workDiffBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">统计展示口径<small>热力图、日均工时、未填提醒和分组排序拿哪个字段当基准<\/small><\/div>\n      <div>\n        <select id=\"hoursBasis\"><\/select>\n        <div class=\"hint\" id=\"hoursBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填工时的任务（按上面的统计展示口径）<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板里批量修改工时（「预计工时」/「实际工时」两列）时如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
+  window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">任务状态范围<small>全部任务，或仅统计云效已标记完成的任务<\/small><\/div>\n      <div><select id=\"taskScope\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">达标工时口径<small>“工时偏差”和“截止今日工时偏差”拿哪组工时与工作日目标比较<\/small><\/div>\n      <div>\n        <select id=\"workDiffBasis\"><\/select>\n        <div class=\"hint\" id=\"workDiffBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">统计展示口径<small>热力图、日均工时、未填提醒和分组排序拿哪个字段当基准<\/small><\/div>\n      <div>\n        <select id=\"hoursBasis\"><\/select>\n        <div class=\"hint\" id=\"hoursBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填工时的任务（按上面的统计展示口径）<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板明细里修改工时（预计 / 实际）和计划开始 / 完成时间后如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
 
   // ---- options.js（原文照搬，只把 window / document 从全局改成形参）----
   window.YXWT.__optionsApp = function (window, document) {
@@ -1971,20 +1971,39 @@
     });
   }
 
+  const PLAN_DATE_KEYS = ['planStart', 'planEnd'];
+
+  function inSnapshotRange(ymd, snapshot) {
+    if (!ymd) return false;
+    if (snapshot.start && ymd < snapshot.start) return false;
+    if (snapshot.end && ymd > snapshot.end) return false;
+    return true;
+  }
+
   /**
-   * 写回云效成功后，把已知的新工时同步进所有命中该工作项的本地快照。
+   * 写回云效成功后，把已知的新值（工时、计划日期）同步进所有命中该工作项的本地快照。
    * 不改 savedAt：它表示整段数据最后一次从云效完整拉取的时间，不能被一次局部写回冒充成全量刷新。
+   *
+   * 计划日期改了，工作项可能换了归属区间，只改字段值会让快照统计错：
+   *   - 含这一行的快照：按该快照自己的归集口径重算 date，落到区间外就把这一行删掉；
+   *   - 不含这一行、但新日期正落在它区间里的快照：缺的正是这一行，而这里补不回来
+   *     （不知道那份快照的成员里有没有这个负责人），只能整份作废，下次访问时重新拉取。
+   * 返回 {snapshots: 改动的快照数, rows: 命中的行数, dropped: 作废的快照数}
    */
   function patchRangeSnapshots(patches) {
+    const has = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
     const byId = {};
     (Array.isArray(patches) ? patches : []).forEach(function (patch) {
       const id = String(patch && patch.id || '');
       if (!id) return;
       const next = byId[id] || (byId[id] = { id: id });
-      if (Object.prototype.hasOwnProperty.call(patch, 'est')) next.est = Number(patch.est) || 0;
-      if (Object.prototype.hasOwnProperty.call(patch, 'act')) next.act = Number(patch.act) || 0;
+      if (has(patch, 'est')) next.est = Number(patch.est) || 0;
+      if (has(patch, 'act')) next.act = Number(patch.act) || 0;
+      PLAN_DATE_KEYS.forEach(function (k) {
+        if (has(patch, k)) next[k] = patch[k] ? String(patch[k]) : null;
+      });
     });
-    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0 });
+    if (!Object.keys(byId).length) return Promise.resolve({ snapshots: 0, rows: 0, dropped: 0 });
 
     return enqueue(function () {
       return rawGet().then(function (raw) {
@@ -1992,25 +2011,47 @@
         const all = clone(cfg.rangeSnapshots);
         let snapshotCount = 0;
         let rowCount = 0;
+        let dropped = 0;
 
         Object.keys(all).forEach(function (key) {
           const snapshot = all[key];
           if (!snapshot || !Array.isArray(snapshot.rows)) return;
-          let touched = false;
-          snapshot.rows.forEach(function (row) {
+          const basis = snapshot.dateBasis || 'planEnd';
+          const hit = {};
+          let hitCount = 0;
+          snapshot.rows = snapshot.rows.filter(function (row) {
             const patch = byId[String(row && row.id || '')];
-            if (!patch) return;
-            if (Object.prototype.hasOwnProperty.call(patch, 'est')) row.est = patch.est;
-            if (Object.prototype.hasOwnProperty.call(patch, 'act')) row.act = patch.act;
-            touched = true;
-            rowCount++;
+            if (!patch) return true;
+            hit[patch.id] = true;
+            hitCount++;
+            if (has(patch, 'est')) row.est = patch.est;
+            if (has(patch, 'act')) row.act = patch.act;
+            PLAN_DATE_KEYS.forEach(function (k) {
+              if (has(patch, k)) row[k] = patch[k];
+            });
+            // 实际完成口径（finishTime）的归属不看计划日期，改了也不挪
+            if (!has(patch, basis)) return true;
+            row.date = patch[basis];
+            return inSnapshotRange(row.date, snapshot);
           });
-          if (touched) snapshotCount++;
+          // 没有起止日期的快照判断不了新日期落不落在里面，维持原样
+          const missesRow = !!(snapshot.start && snapshot.end) && Object.keys(byId).some(function (id) {
+            return !hit[id] && has(byId[id], basis) && inSnapshotRange(byId[id][basis], snapshot);
+          });
+          if (missesRow) {
+            delete all[key];
+            dropped++;
+            return;
+          }
+          if (hitCount) {
+            snapshotCount++;
+            rowCount += hitCount;
+          }
         });
 
-        if (!snapshotCount) return { snapshots: 0, rows: 0 };
+        if (!snapshotCount && !dropped) return { snapshots: 0, rows: 0, dropped: 0 };
         return rawSet({ rangeSnapshots: all }).then(function () {
-          return { snapshots: snapshotCount, rows: rowCount };
+          return { snapshots: snapshotCount, rows: rowCount, dropped: dropped };
         });
       });
     });
@@ -2161,6 +2202,29 @@
       }
     }
   };
+
+  /**
+   * 普通自定义字段的写入端点，目前只用来写「计划开始 / 计划完成时间」。
+   *
+   * **已抓包实证**（2026-09-15）：在云效列表页就地改日期，把它自己发出的请求**拦在浏览器里**
+   * 录下来（没放行到服务端，刷新后原日期不变）：
+   *   POST /projex/api/workitem/workitem/field/value/{workitemId}?_input_charset=utf-8
+   *   Content-Type: application/x-www-form-urlencoded
+   *   X-Csrf-Token: <页面的 window.csrfToken>     X-Requested-With: XMLHttpRequest
+   *   fieldValueList=[{"fieldIdentifier":"80","value":"2026-09-18 00:00:00"}]   （整段 URL 编码）
+   * 改计划开始时间只是 fieldIdentifier 换成对应字段 id。
+   *
+   * 和工时是两套东西：这里是**赋值**语义（不是追加记录），请求体是「表单里塞一个 JSON 字符串」，
+   * 不是 JSON 请求体。当年按 JSON 往这个路径写工时回 400，工时本来也不走这里。
+   */
+  const FIELD_VALUE_PATH = '/workitem/workitem/field/value/';
+  const DATE_VALUE_SUFFIX = ' 00:00:00';
+
+  // 云效前端（aone-workitem-fe 的 axios 拦截器）给每个请求都带 X-Csrf-Token，值取 window.csrfToken，
+  // 而这个变量是页面内联脚本赋的（公开 bundle 里只读不赋）。content script 在隔离环境里
+  // 读不到页面的 window 变量，只能从 DOM 里的内联脚本文本抠。
+  // 实测 field/value 不强制校验这个头（不带也写成功了），带上只是和云效自己的请求保持一致。
+  const CSRF_RE = /\bcsrfToken["']?\s*[:=]\s*["']([^"'\s]{8,})["']/;
 
   /** 云效要的是带时区偏移的 ISO，比如 2026-08-22T11:27:41+08:00（不是 UTC 的 Z 结尾） */
   function isoWithOffset(d) {
@@ -3035,6 +3099,157 @@
     return { ok: true, from: before, to: target, delta: delta, endpoint: writer.key };
   }
 
+  /** 读不到就返回空串，调用方就不带这个头（实测不带也能写） */
+  function pageCsrfToken() {
+    if (typeof document === 'undefined' || !document || typeof document.querySelectorAll !== 'function') return '';
+    let scripts = [];
+    try {
+      scripts = document.querySelectorAll('script:not([src])');
+    } catch (e) {
+      return '';
+    }
+    for (let i = 0; i < scripts.length; i++) {
+      const m = CSRF_RE.exec((scripts[i] && scripts[i].textContent) || '');
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  /** 日期字段值 → 'YYYY-MM-DD'；云效存的是 '2026-09-16 00:00:00'，比较只看日期部分 */
+  function ymdOf(v) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(normValue(v));
+    return m ? m[1] + '-' + m[2] + '-' + m[3] : '';
+  }
+
+  function isRealYMD(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+    if (!m) return false;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+  }
+
+  /**
+   * 写日期型自定义字段（计划开始 / 计划完成时间）。赋值语义，和工时的「记录累加」无关。
+   *
+   * 和 saveWorkHours 同一套保守流程：
+   *   1. dryRun（默认）→ 只读当前值返回「旧值 → 新值」，一个写请求都不发
+   *   2. 写前读当前值，日期没变就跳过
+   *   3. 只发一次写请求
+   *   4. 写后按 identifier 重读工作项复核。和工时相反，**读到的仍是旧值就报失败**：
+   *      赋值重试不会叠加，报失败最多让用户再点一次；报成功却会让界面和快照记住一个没落库的日期。
+   *
+   * 不支持清空日期：清空时云效发什么没抓到，不猜。
+   *
+   * @param workitemId 工作项 identifier
+   * @param fieldId    日期字段 id（运行时探测，本组织是 79 / 80）
+   * @param ymd        'YYYY-MM-DD'
+   * @param options    {dryRun}
+   */
+  async function saveDateField(workitemId, fieldId, ymd, options) {
+    const opts = options || {};
+    const dryRun = opts.dryRun !== false;
+    const target = String(ymd || '').trim();
+
+    if (!fieldId) {
+      return { ok: false, error: '没有识别到这个日期字段，无法写入' };
+    }
+    if (!isRealYMD(target)) {
+      return { ok: false, error: '日期必须是 YYYY-MM-DD（收到 ' + (ymd === undefined ? '空' : ymd) + '）' };
+    }
+
+    const readItem = function () {
+      return getWorkitemById(workitemId, { signal: opts.signal });
+    };
+
+    if (dryRun) {
+      let from = null;
+      try {
+        from = customFieldValue(await readItem(), fieldId);
+      } catch (e) {
+        if (isNotLoggedIn(e)) throw e;
+        from = null;
+      }
+      return {
+        ok: true, dryRun: true,
+        would: { workitemId: workitemId, fieldId: fieldId, from: from, to: target }
+      };
+    }
+
+    const item = await readItem();
+    if (!item) {
+      return { ok: false, error: '按 identifier 没重读到这个工作项（可能已删除或没有权限），没有写入' };
+    }
+    const before = customFieldValue(item, fieldId);
+    if (ymdOf(before) === target) {
+      return { ok: true, skipped: 'unchanged', from: before, to: target };
+    }
+
+    const body = 'fieldValueList=' + encodeURIComponent(JSON.stringify([
+      { fieldIdentifier: String(fieldId), value: target + DATE_VALUE_SUFFIX }
+    ]));
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    const token = pageCsrfToken();
+    if (token) headers['X-Csrf-Token'] = token;
+
+    try {
+      await req(FIELD_VALUE_PATH + encodeURIComponent(workitemId), {
+        method: 'POST', body: body, headers: headers
+      });
+    } catch (e) {
+      if (isNotLoggedIn(e)) throw e;
+      const detail = 'fieldValue → ' + ((e && e.message) || '写入失败') +
+        (e && e.code !== undefined && e.code !== null ? '（code ' + e.code + '）' : '') +
+        (e && e.traceId ? ' traceId=' + e.traceId : '');
+      try {
+        console.warn('[云效工时统计] 日期字段写入失败：', {
+          workitemId: workitemId, fieldId: fieldId, body: body, csrf: !!token,
+          error: (e && e.message) || e, code: e && e.code, traceId: e && e.traceId
+        });
+      } catch (ignored) { /* 控制台不可用时静默 */ }
+      return { ok: false, error: detail, attempts: [detail], from: before, to: target };
+    }
+
+    let after = null;
+    let verifyError = null;
+    const waits = [300, 700, 1500];
+    for (let i = 0; i < waits.length; i++) {
+      try {
+        after = customFieldValue(await readItem(), fieldId);
+      } catch (e) {
+        if (isNotLoggedIn(e)) throw e;
+        verifyError = (e && e.message) || '未知错误';
+        break;
+      }
+      if (ymdOf(after) === target) {
+        try {
+          console.info('[云效工时统计] 日期字段已写入：', {
+            workitemId: workitemId, fieldId: fieldId, before: before, target: target, verified: after
+          });
+        } catch (ignored) { /* 控制台不可用时静默 */ }
+        return { ok: true, from: before, to: target, endpoint: 'fieldValue' };
+      }
+      if (i < waits.length - 1) await sleep(waits[i]);
+    }
+
+    if (verifyError) {
+      // 写请求已经 200，只是复核读失败：没有证据说它没写进去，按成功处理并提示刷新确认
+      return {
+        ok: true, unverified: true,
+        error: '已提交，但复核时读不到最新值（' + verifyError + '）',
+        hint: '请刷新页面确认。日期是赋值，确实没写进去的话再提交一次也不会叠加。',
+        from: before, to: target, endpoint: 'fieldValue'
+      };
+    }
+    return {
+      ok: false,
+      error: '云效回了成功，但复核读到的仍是 ' + (ymdOf(after) || '空') + '，没有变成 ' + target,
+      from: before, to: target
+    };
+  }
+
   function pickFieldValue(result, fieldId) {
     const target = String(fieldId);
     const lists = [];
@@ -3165,6 +3380,8 @@
     getWorkitemById: getWorkitemById,
     customFieldValue: customFieldValue,
     saveWorkHours: saveWorkHours,
+    saveDateField: saveDateField,
+    pageCsrfToken: pageCsrfToken,
     pickFieldValue: pickFieldValue,
     cond: cond
   };
@@ -5753,7 +5970,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     { key: 'assignee', label: '负责人', cls: 'yxp-c-assignee' },
     { key: 'est', label: '预计', cls: 'yxp-c-num', editable: 'est' },
     { key: 'act', label: '实际', cls: 'yxp-c-num', editable: 'act' },
-    { key: 'planEnd', label: '计划完成', cls: 'yxp-c-date' },
+    { key: 'planStart', label: '计划开始', cls: 'yxp-c-date', editable: 'planStart' },
+    { key: 'planEnd', label: '计划完成', cls: 'yxp-c-date', editable: 'planEnd' },
     { key: '__open', label: '打开', cls: 'yxp-c-open', sortable: false }
   ];
 
@@ -5766,7 +5984,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  --yxp-good:#0e9d68;--yxp-warn:#dd8400;--yxp-bad:#e04437;',
     '  --yxp-h0:#eef1f7;--yxp-h1:#d6e2ff;--yxp-h2:#a8c3ff;--yxp-h3:#6f9bff;--yxp-h4:#2f6bff;',
     '  --yxp-h4-text:#ffffff;--yxp-h3-text:#ffffff;',
-    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;',
+    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;--yxp-scheme:light;',
     '  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;',
     '}',
     '@media (prefers-color-scheme:dark){',
@@ -5778,7 +5996,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '    --yxp-good:#3fc08c;--yxp-warn:#f0a53a;--yxp-bad:#ff6b5c;',
     '    --yxp-h0:#232833;--yxp-h1:#25355a;--yxp-h2:#2f4a86;--yxp-h3:#3b62b8;--yxp-h4:#5b8cff;',
     '    --yxp-h4-text:#0d1220;--yxp-h3-text:#eaf0ff;',
-    '    --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;',
+    '    --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;--yxp-scheme:dark;',
     '  }',
     '}',
     // [data-theme] 显式覆盖，优先级高于系统偏好
@@ -5790,7 +6008,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  --yxp-good:#0e9d68;--yxp-warn:#dd8400;--yxp-bad:#e04437;',
     '  --yxp-h0:#eef1f7;--yxp-h1:#d6e2ff;--yxp-h2:#a8c3ff;--yxp-h3:#6f9bff;--yxp-h4:#2f6bff;',
     '  --yxp-h4-text:#ffffff;--yxp-h3-text:#ffffff;',
-    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;',
+    '  --yxp-edit:#fff6e2;--yxp-fail:#ffe9e6;--yxp-scheme:light;',
     '}',
     ':host([data-theme="dark"]) .yxp-root{',
     '  --yxp-bg:#161a21;--yxp-bg-sub:#1d222b;--yxp-bg-soft:#1a1f27;',
@@ -5800,7 +6018,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  --yxp-good:#3fc08c;--yxp-warn:#f0a53a;--yxp-bad:#ff6b5c;',
     '  --yxp-h0:#232833;--yxp-h1:#25355a;--yxp-h2:#2f4a86;--yxp-h3:#3b62b8;--yxp-h4:#5b8cff;',
     '  --yxp-h4-text:#0d1220;--yxp-h3-text:#eaf0ff;',
-    '  --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;',
+    '  --yxp-edit:#3a3018;--yxp-fail:#3d1f1c;--yxp-scheme:dark;',
     '}',
     '.yxp-hidden{display:none !important;}',
     '.yxp-root *{box-sizing:border-box;}',
@@ -5943,7 +6161,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  position:sticky;top:0;z-index:3;}',
     // 必须给 wrap 定高：否则它自身永远不纵向溢出，th 的 sticky 偏移不触发，表头会随整页滚走
     '.yxp-tablewrap{overflow:auto;max-height:52vh;border:1px solid var(--yxp-border);border-radius:12px;}',
-    '.yxp-table{border-collapse:collapse;width:100%;min-width:940px;font-size:12px;}',
+    '.yxp-table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12px;}',
     '.yxp-table th{position:sticky;top:0;z-index:1;background:var(--yxp-bg-sub);color:var(--yxp-text-dim);',
     '  font-weight:600;text-align:left;padding:8px 10px;white-space:nowrap;cursor:pointer;',
     '  border-bottom:1px solid var(--yxp-border);}',
@@ -5963,7 +6181,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '.yxp-c-status{width:96px;}',
     '.yxp-c-assignee{width:90px;color:var(--yxp-text-dim);}',
     '.yxp-c-num{width:78px;text-align:right;font-variant-numeric:tabular-nums;}',
-    '.yxp-c-date{width:104px;color:var(--yxp-text-dim);font-variant-numeric:tabular-nums;}',
+    '.yxp-c-date{width:132px;color:var(--yxp-text-dim);font-variant-numeric:tabular-nums;}',
     '.yxp-c-open{width:56px;text-align:center;}',
     '.yxp-pill{display:inline-block;padding:1px 8px;border-radius:20px;background:var(--yxp-bg-sub);',
     '  color:var(--yxp-text-dim);font-size:11px;white-space:nowrap;}',
@@ -5972,6 +6190,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     '  font-variant-numeric:tabular-nums;}',
     '.yxp-actinput:focus{outline:none;border-color:var(--yxp-primary);}',
     '.yxp-actinput.miss{border-color:var(--yxp-bad);color:var(--yxp-bad);font-weight:600;}',
+    // 原生日期框的日历图标跟 color-scheme 走，不跟面板主题变量走，暗色下要单独切
+    '.yxp-dateinput{width:120px;text-align:left;color-scheme:var(--yxp-scheme);}',
     '.yxp-miss{color:var(--yxp-bad);font-weight:600;}',
     '.yxp-check{display:inline-flex;align-items:center;gap:5px;color:var(--yxp-text-dim);',
     '  font-size:12px;cursor:pointer;user-select:none;}',
@@ -6020,8 +6240,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     snapshotKey: '',
     truncated: false,
     // 编辑状态按「行 + 字段」两级存，只放真正改过的字段（详见 numCell / setEdit 附近的说明）
-    edits: {},              // {rowId: {est?: 新预计工时, act?: 新实际工时}}
-    failed: {},             // {'rowId|est' / 'rowId|act': 错误文案}，键由 failKey() 拼
+    edits: {},              // {rowId: {est?/act?: 工时数值, planStart?/planEnd?: 'YYYY-MM-DD'}}
+    failed: {},             // {'rowId|est' / 'rowId|planEnd' …: 错误文案}，键由 failKey() 拼
     sortKey: 'planEnd',
     sortDir: 'desc',
     search: '',
@@ -7385,18 +7605,22 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
   /* ---------------------------------------------------------------- 明细表 */
 
-  /** 明细表当前该显示哪几列：只用预计就不摆实际那一列，反之亦然 */
+  /**
+   * 明细表当前该显示哪几列：只用预计就不摆实际那一列，反之亦然。
+   * 计划开始时间没识别出来时整列都是空的，不摆（计划完成是默认归集口径，一直留着）。
+   */
   function visibleColumns() {
     return COLUMNS.filter(function (c) {
       if (c.key === 'est') return usesEst();
       if (c.key === 'act') return usesAct();
+      if (c.key === 'planStart') return !!rawFieldOf('planStart');
       return true;
     });
   }
 
   function renderTable() {
     const sec = clear(refs.secTable);
-    // 「能不能编辑」现在是按列判断的（预计 / 实际各自看字段有没有识别出来）
+    // 「能不能编辑」是按列判断的（预计 / 实际 / 两个计划日期各自看字段有没有识别出来）
     const canEditAct = canEditField('act');
     const canEdit = canEditAct || canEditField('est');
 
@@ -7463,11 +7687,15 @@ button,input,select,textarea{font:inherit;color:inherit;}
       add(bar, el('span', 'yxp-note',
         '「预计工时」和「实际工时」指向了同一个字段，已禁用「预计」列编辑（同时写会互相覆盖）。请到设置页修正映射。'));
     } else if (!canEdit) {
-      add(bar, el('span', 'yxp-note', '未识别到工时字段，明细只读。可到设置页手动指定。'));
+      add(bar, el('span', 'yxp-note', '未识别到工时字段，工时列只读。可到设置页手动指定。'));
     } else if (!canEditAct && usesAct()) {
       add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('act') + '」字段，这一列只读。'));
     } else if (!canEditField('est') && usesEst()) {
       add(bar, el('span', 'yxp-note', '未识别到「' + fieldLabel('est') + '」字段，这一列只读。'));
+    }
+    if (dateFieldConflict()) {
+      add(bar, el('span', 'yxp-note',
+        '「计划开始时间」和「计划完成时间」指向了同一个字段，已禁用「计划开始」列编辑。请到设置页修正映射。'));
     }
     add(sec, bar);
 
@@ -7606,7 +7834,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     if (usesEst()) add(tr, numCell(r, 'est', tr));
     if (usesAct()) add(tr, numCell(r, 'act', tr));
 
-    add(tr, el('td', 'yxp-c-date', r.planEnd || '—'));
+    if (rawFieldOf('planStart')) add(tr, dateCell(r, 'planStart', tr));
+    add(tr, dateCell(r, 'planEnd', tr));
 
     const tdOpen = el('td', 'yxp-c-open');
     if (r.url) {
@@ -7655,11 +7884,36 @@ button,input,select,textarea{font:inherit;color:inherit;}
     return td;
   }
 
-  // 编辑状态按「行 + 字段」两级存：state.edits[rowId] = { est?: 数值, act?: 数值 }
-  // 只放真正改过的字段。失败原因按 rowId|字段 存，避免一行两个字段互相覆盖错误提示。
+  /** 计划日期单元格：字段识别得出来就是原生日期框，否则只读 */
+  function dateCell(r, which, tr) {
+    const td = el('td', 'yxp-c-date');
+    if (!canEditField(which)) {
+      td.textContent = r[which] || '—';
+      return td;
+    }
+    const inp = el('input', 'yxp-actinput yxp-dateinput');
+    inp.type = 'date';
+    inp.value = effectiveDate(r, which) || '';
+    inp.disabled = !!state.submitting;
+    const f = fieldOf(which);
+    inp.title = f.name + ' 原值 ' + (r[which] || '空') + '（不支持在这里清空）';
+    inp.setAttribute('aria-label', f.name + '（' + (r.sn || r.id) + '）');
+    inp.oninput = function () { onDateInput(r, which, inp, tr); };
+    inp.onblur = function () { onDateBlur(r, which, inp, tr); };
+    add(td, inp);
+    const err = state.failed[failKey(r.id, which)];
+    if (err) add(td, el('div', 'yxp-err', truncate(err, 28)));
+    return td;
+  }
+
+  // 编辑状态按「行 + 字段」两级存：state.edits[rowId] = { est?, act?, planStart?, planEnd? }
+  // 只放真正改过的字段。失败原因按 rowId|字段 存，避免一行几个字段互相覆盖错误提示。
+  // kind 决定走哪个写接口：工时是专用的记录接口，日期是普通字段赋值（见 api.js）。
   const EDITABLE = [
-    { which: 'est', mapKey: 'estimated', label: '预计工时' },
-    { which: 'act', mapKey: 'actual', label: '实际工时' }
+    { which: 'est', mapKey: 'estimated', label: '预计工时', kind: 'hours' },
+    { which: 'act', mapKey: 'actual', label: '实际工时', kind: 'hours' },
+    { which: 'planStart', mapKey: 'planStart', label: '计划开始时间', kind: 'date' },
+    { which: 'planEnd', mapKey: 'planEnd', label: '计划完成时间', kind: 'date' }
   ];
 
   function rawFieldOf(which) {
@@ -7679,8 +7933,16 @@ button,input,select,textarea{font:inherit;color:inherit;}
     return !!(e && a && e.id === a.id);
   }
 
+  // 两个计划日期指向同一字段同理：只保留「计划完成」可编辑（它是默认归集口径）
+  function dateFieldConflict() {
+    const s = rawFieldOf('planStart');
+    const e = rawFieldOf('planEnd');
+    return !!(s && e && s.id === e.id);
+  }
+
   function fieldOf(which) {
     if (which === 'est' && fieldIdConflict()) return null;
+    if (which === 'planStart' && dateFieldConflict()) return null;
     return rawFieldOf(which);
   }
 
@@ -7718,6 +7980,13 @@ button,input,select,textarea{font:inherit;color:inherit;}
     return Number(r[which]) || 0;
   }
 
+  /** 计划日期的当前值（含本地未提交的改动）：'YYYY-MM-DD' 或 null */
+  function effectiveDate(r, which) {
+    const e = editsOf(r);
+    if (e && has(e, which)) return e[which];
+    return r[which] || null;
+  }
+
   function setEdit(r, which, value) {
     let e = editsOf(r);
     if (value === null) {
@@ -7750,12 +8019,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
       if (rounded === cur) setEdit(r, which, null);
       else setEdit(r, which, rounded);
     }
-    delete state.failed[failKey(r.id, which)];
-    // 失败提示是渲染时挂在这个单元格上的子节点，值一改就该跟着消失，
-    // 否则用户改完还看着红字，会以为又失败了一次而重复提交
-    const cell = inp.parentNode;
-    const errNode = cell && cell.querySelector ? cell.querySelector('.yxp-err') : null;
-    if (errNode && errNode.parentNode) errNode.parentNode.removeChild(errNode);
+    clearCellFailure(r, which, inp);
     tr.className = rowClass(r);
     // 补上预计工时后，「未填预计」卡片和警示条的数字要立刻跟着降
     if (which === 'est' && canWarnMissing()) renderOverview();
@@ -7763,6 +8027,63 @@ button,input,select,textarea{font:inherit;color:inherit;}
     // fillable 的判据里有 effective(r,'act')，编辑单元格会直接改变可填条数，
     // 按钮的文案和禁用态必须跟着走（syncFillBtn 只改 textContent/title/disabled，不抢焦点）
     syncFillBtn();
+  }
+
+  function clearCellFailure(r, which, inp) {
+    delete state.failed[failKey(r.id, which)];
+    // 失败提示是渲染时挂在这个单元格上的子节点，值一改就该跟着消失，
+    // 否则用户改完还看着红字，会以为又失败了一次而重复提交
+    const cell = inp.parentNode;
+    const errNode = cell && cell.querySelector ? cell.querySelector('.yxp-err') : null;
+    if (errNode && errNode.parentNode) errNode.parentNode.removeChild(errNode);
+  }
+
+  // 键盘逐位敲年份时，原生日期框会先吐出 0002-09-16、0020-09-16 这种中间值（都会触发 input），
+  // 这些既不能记成改动，也不能拿去判「开始晚于完成」，否则年份根本敲不完
+  function plausibleYMD(v) {
+    const m = /^(\d{4})-\d{2}-\d{2}$/.exec(v);
+    return !!m && Number(m[1]) >= 1970 && Number(m[1]) <= 2099;
+  }
+
+  /**
+   * 计划日期只在本地记改动，**不**跟着改归集日期、不挪日历格子：
+   * 写回成功之前它还不是云效上的事实，统计仍按云效上的原值算。
+   */
+  function onDateInput(r, which, inp, tr) {
+    const v = String(inp.value || '').trim();
+    if (v === '') {
+      setEdit(r, which, null);     // 不支持清空：清掉就当没改，失焦时框里恢复原值
+    } else {
+      if (!plausibleYMD(v)) return;
+      setEdit(r, which, v === (r[which] || '') ? null : v);
+    }
+    clearCellFailure(r, which, inp);
+    tr.className = rowClass(r);
+    renderEditBar();
+  }
+
+  /**
+   * 开始晚于完成的组合在失焦时退回本次改的这个日期：放在输入时判，逐位敲日期也会被误拦。
+   * 只在这个格子真有改动时才判——云效上原本就颠倒的数据，路过一下不该每次都弹错。
+   */
+  function onDateBlur(r, which, inp, tr) {
+    const e = editsOf(r);
+    const bad = e && has(e, which) ? datePairError(r) : '';
+    if (bad) {
+      setEdit(r, which, null);
+      tr.className = rowClass(r);
+      renderEditBar();
+      toast(bad, 'error');
+    }
+    inp.value = effectiveDate(r, which) || '';
+  }
+
+  function datePairError(r) {
+    const s = effectiveDate(r, 'planStart');
+    const e = effectiveDate(r, 'planEnd');
+    if (!s || !e || s <= e) return '';
+    return '「计划开始时间」（' + s + '）不能晚于「计划完成时间」（' + e + '）。' +
+      '要整体往后挪，先改计划完成；往前挪，先改计划开始。';
   }
 
   function sortRows(rows) {
@@ -7788,7 +8109,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
   function sortVal(r, key) {
     if (key === 'est') return effective(r, 'est');
     if (key === 'act') return effective(r, 'act');
-    if (key === 'planEnd') return r.planEnd || '';
+    if (key === 'planEnd' || key === 'planStart') return effectiveDate(r, key) || '';
     return r[key] === null || r[key] === undefined ? '' : r[key];
   }
 
@@ -7799,17 +8120,34 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.rows.forEach(function (r) {
       const e = editsOf(r);
       if (!e) return;
+      const items = [];
       EDITABLE.forEach(function (x) {
         if (!has(e, x.which)) return;
         const f = fieldOf(x.which);
         if (!f) return;                              // 字段没识别出来就不提交
-        out.push({
-          row: r, which: x.which, fieldId: f.id, fieldLabel: x.label,
-          from: Number(r[x.which]) || 0, to: e[x.which]
+        items.push({
+          row: r, which: x.which, kind: x.kind, fieldId: f.id, fieldLabel: x.label,
+          from: x.kind === 'date' ? (r[x.which] || null) : (Number(r[x.which]) || 0),
+          to: e[x.which]
         });
       });
+      // 一行两个计划日期都改时是分两次写的，中间态也得是「开始 ≤ 完成」，免得云效拦下第二次。
+      // 默认先写开始；新开始晚于旧完成（整体往后挪）时必须先写完成。
+      const si = indexOfWhich(items, 'planStart');
+      const ei = indexOfWhich(items, 'planEnd');
+      if (si >= 0 && ei >= 0 && r.planEnd && items[si].to > r.planEnd) {
+        const tmp = items[si];
+        items[si] = items[ei];
+        items[ei] = tmp;
+      }
+      items.forEach(function (c) { out.push(c); });
     });
     return out;
+  }
+
+  function indexOfWhich(items, which) {
+    for (let i = 0; i < items.length; i++) if (items[i].which === which) return i;
+    return -1;
   }
 
   /** 把所有写入失败的诊断信息整理成一段纯文本，方便直接贴给开发者定位 */
@@ -7819,7 +8157,8 @@ button,input,select,textarea{font:inherit;color:inherit;}
     lines.push('# 云效工时统计 · 写入失败诊断');
     lines.push('插件版本: ' + pluginVersion());
     lines.push('组织: ' + ((state.ctx && (state.ctx.orgName || state.ctx.orgId)) || '未知'));
-    lines.push('字段映射: 预计=' + fieldSig(fm.estimated) + '  实际=' + fieldSig(fm.actual));
+    lines.push('字段映射: 预计=' + fieldSig(fm.estimated) + '  实际=' + fieldSig(fm.actual) +
+      '  计划开始=' + fieldSig(fm.planStart) + '  计划完成=' + fieldSig(fm.planEnd));
     lines.push('写入模式: ' + (isDryRun() ? '只读预演' : '真实写回'));
     lines.push('');
     Object.keys(state.failed).forEach(function (k) {
@@ -7971,12 +8310,35 @@ button,input,select,textarea{font:inherit;color:inherit;}
     return a + ' → ' + b;
   }
 
+  /**
+   * 真写这条日期后，和云效上另一个日期的现值（本批已写成功的会就地更新到 r 上）是否颠倒。
+   * 只用于真实写入：预演时 r 不更新，拿它判会把合法的第二条误拦下。
+   */
+  function invertsSavedPair(c) {
+    const other = c.which === 'planStart' ? c.row.planEnd : c.row.planStart;
+    if (!other) return false;
+    return c.which === 'planStart' ? c.to > other : c.to < other;
+  }
+
+  /** 这条日期改动写回后，按当前归集口径是否就不属于当前区间了 */
+  function leavesRange(c) {
+    return c.kind === 'date' && c.which === state.dateBasis && (c.to < state.start || c.to > state.end);
+  }
+
   async function submitEdits() {
     const list = changedList();
     if (!list.length) return;
     // changedList 已经把「字段没识别出来」的改动过滤掉了，这里只做兜底
     if (!state.fieldMap) {
-      toast('还没识别到工时字段，无法提交', 'error');
+      toast('还没识别到字段映射，无法提交', 'error');
+      return;
+    }
+    // 失焦时已经拦过，这里防的是焦点还在日期框里就点了提交之类的漏网情况。
+    // 只查改了日期的行：云效上原本就颠倒的数据不该挡住同一行的工时提交
+    const badPair = list.filter(function (c) { return c.kind === 'date'; })
+      .map(function (c) { return datePairError(c.row); }).filter(Boolean)[0];
+    if (badPair) {
+      toast(badPair, 'error');
       return;
     }
     const dryRun = isDryRun();
@@ -7986,14 +8348,20 @@ button,input,select,textarea{font:inherit;color:inherit;}
     const actNote = list.some(function (c) { return c.which === 'act'; })
       ? '\n注意：「实际工时」在云效里是工时登记的累加值，这里会为你补登记差额（只能增加，不能改小）。'
       : '';
+    const leaving = list.filter(leavesRange).length;
+    const moveNote = leaving
+      ? '\n注意：有 ' + leaving + ' 条改完「' + basisLabel(state.dateBasis) + '」后不在当前区间（' +
+        state.start + ' ~ ' + state.end + '），写回后会从本区间的统计里移出。'
+      : '';
     const lines = list.map(function (c) {
-      const base = '· ' + (c.row.sn || c.row.id) + ' ' + truncate(c.row.subject, 22) +
-        '  [' + c.fieldLabel + '] ' + changeText(c.from, c.to);
+      const base = '· ' + (c.row.sn || c.row.id) + ' ' + truncate(c.row.subject, 22) + '  [' + c.fieldLabel + '] ' +
+        (c.kind === 'date' ? (c.from || '空') + ' → ' + c.to : changeText(c.from, c.to));
+      if (c.kind === 'date') return base + (leavesRange(c) ? '（移出当前区间）' : '');
       if (c.which !== 'act') return base;
       const d = Math.round((Number(c.to) - Number(c.from)) * 10) / 10;
       return base + '（登记 +' + hours(d) + 'h）';
     });
-    const bodyText = '共 ' + list.length + ' 条改动，写入模式：' + (dryRun ? '只读预演（不会真正写回云效）' : '写回云效（不可撤销）') + '\n' + lines.join('\n') + actNote;
+    const bodyText = '共 ' + list.length + ' 条改动，写入模式：' + (dryRun ? '只读预演（不会真正写回云效）' : '写回云效（不可撤销）') + '\n' + lines.join('\n') + actNote + moveNote;
 
     // 标题必须说清这次到底要写哪几个字段：它是不可撤销写入前的第一眼信息，
     // 也是 confirmDialog 给读屏用的 aria-label（ui.js 用 title 当可访问名）。
@@ -8026,15 +8394,28 @@ button,input,select,textarea{font:inherit;color:inherit;}
     let failCount = 0;
     let unverifiedCount = 0;   // 写进去了但云效汇总还没刷新出来的条数
     const cachePatches = {};
+    const rebucketed = {};     // 归集日期被改掉的行，写完统一看还在不在当前区间
+    // 云效上原本就颠倒的行，怎么排顺序中间态都是颠倒的，不拦（拦了就永远改不回来）
+    const pairWasOk = {};
+    list.forEach(function (c) {
+      pairWasOk[c.row.id] = !(c.row.planStart && c.row.planEnd && c.row.planStart > c.row.planEnd);
+    });
     for (let i = 0; i < list.length; i++) {
       const c = list[i];
       let res = null;
       try {
-        res = await NS.api.saveWorkHours(c.row.id, c.which, c.to, {
-          dryRun: dryRun,
-          fieldId: c.fieldId,                       // 只用于读原值与写后复核
-          userId: state.ctx && state.ctx.userId
-        });
+        if (c.kind === 'date' && !dryRun && pairWasOk[c.row.id] && invertsSavedPair(c)) {
+          // changedList 排好了顺序，走到这里说明同一行先写的那个日期没写成功
+          res = { ok: false, error: '同一行另一个计划日期没写成功，这条先不写，免得云效上开始晚于完成' };
+        } else if (c.kind === 'date') {
+          res = await NS.api.saveDateField(c.row.id, c.fieldId, c.to, { dryRun: dryRun });
+        } else {
+          res = await NS.api.saveWorkHours(c.row.id, c.which, c.to, {
+            dryRun: dryRun,
+            fieldId: c.fieldId,                     // 只用于读原值与写后复核
+            userId: state.ctx && state.ctx.userId
+          });
+        }
       } catch (e) {
         res = { ok: false, error: errMsg(e) };
       }
@@ -8049,6 +8430,10 @@ button,input,select,textarea{font:inherit;color:inherit;}
           setEdit(c.row, c.which, null);
           const patch = cachePatches[c.row.id] || (cachePatches[c.row.id] = { id: c.row.id });
           patch[c.which] = c.to;
+          if (c.which === state.dateBasis) {
+            c.row.date = c.to;
+            rebucketed[c.row.id] = true;
+          }
         }
       } else {
         failCount++;
@@ -8073,14 +8458,16 @@ button,input,select,textarea{font:inherit;color:inherit;}
       }
     }
 
+    const moved = dropRowsOutOfRange(rebucketed);
+    const movedNote = moved
+      ? '；' + moved + ' 条的' + basisLabel(state.dateBasis) + '已不在当前区间，已移出本区间统计'
+      : '';
+
     state.submitting = false;
     state.submitProgress = null;
-    renderTable();
-    renderOverview();
-    // 日历热力图的格子数字/色深/「工时不足」描边全部按 r.est 算，真实写入会就地改掉 r.est，
-    // 不重绘就会出现「概览卡已经变了、日历还是旧数字」的同屏矛盾。
-    renderCalendar();
-    renderGroups();
+    // 概览 / 日历 / 分组 / 明细全部重绘：日历格子按 r.est 着色，真实写入会就地改掉 r.est；
+    // 改了计划日期的行还可能换了日子甚至移出区间。漏一块就会同屏两个数对不上。
+    renderAll();
 
     if (dryRun) {
       // 预演成功和真写成功长得太像，用户很容易以为已经写进去了，
@@ -8088,16 +8475,38 @@ button,input,select,textarea{font:inherit;color:inherit;}
       // 并且直接把「现在真写」这一步接上，不再打发人去设置页。
       await afterDryRun(okCount, skipCount, failCount);
     } else if (failCount) {
-      toast('提交完成：成功 ' + okCount + ' 条，失败 ' + failCount + ' 条（失败的行已标红，可修改后重试）', 'error');
+      toast('提交完成：成功 ' + okCount + ' 条，失败 ' + failCount + ' 条（失败的行已标红，可修改后重试）' + movedNote, 'error');
     } else if (unverifiedCount) {
       // 关键：这不是失败。云效工时汇总是异步算的，写完立刻读经常还是旧值。
       // 说成失败会诱导用户重试，而每重试一次就会在云效上多加一条工时记录。
       toast('已提交 ' + okCount + ' 条。其中 ' + unverifiedCount +
-        ' 条云效的工时汇总还没刷新出来（这是云效的异步延迟，不是失败）。' +
-        '过几秒刷新页面确认即可，千万不要重复提交——每提交一次就会多一条工时记录。', 'info');
+        ' 条云效还没刷新出新值（这是云效的异步延迟，不是失败）。' +
+        '过几秒刷新页面确认即可，工时千万不要重复提交——每提交一次就会多一条工时记录' + movedNote + '。', 'info');
     } else {
-      toast('提交完成：成功 ' + okCount + ' 条' + (skipCount ? '，' + skipCount + ' 条值未变化' : ''), 'success');
+      toast('提交完成：成功 ' + okCount + ' 条' + (skipCount ? '，' + skipCount + ' 条值未变化' : '') + movedNote, 'success');
     }
+  }
+
+  /**
+   * 写回后归集日期落到当前区间外的行，按口径已经不属于这个区间了，从本区间统计里拿掉
+   * （本地快照由 store.patchRangeSnapshots 同步处理）。还挂着别的改动或失败的行先留着，
+   * 不能让用户没提交成功的那部分跟着一起消失。
+   */
+  function dropRowsOutOfRange(ids) {
+    if (!Object.keys(ids).length) return 0;
+    const before = state.rows.length;
+    state.rows = state.rows.filter(function (r) {
+      if (!ids[r.id]) return true;
+      if (r.date && r.date >= state.start && r.date <= state.end) return true;
+      return isDirty(r) || EDITABLE.some(function (x) { return state.failed[failKey(r.id, x.which)]; });
+    });
+    const moved = before - state.rows.length;
+    if (!moved) return 0;
+    // 和 load() 一样：筛选条件下一条都不剩了就把筛选撤掉，别留一张莫名其妙的空表
+    const left = taskScopeRows();
+    if (state.dayFilter && left.every(function (r) { return r.date !== state.dayFilter; })) state.dayFilter = null;
+    if (state.missingOnly && !countMissing(left)) state.missingOnly = false;
+    return moved;
   }
 
   /**
@@ -8124,7 +8533,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     try {
       ok = await NS.ui.confirmDialog(refs.root, {
         title: '预演通过 —— 但还没有写入云效',
-        body: '刚才只是预演，云效上的工时一点都没改。\n\n' +
+        body: '刚才只是预演，云效上的数据一点都没改。\n\n' +
           '有 ' + okCount + ' 条可以写入。现在真正写回云效吗？\n' +
           '（写回后本次改动不可撤销；也可以到设置页把「写入模式」长期改成「允许写回云效」）',
         okText: '真正写回云效',

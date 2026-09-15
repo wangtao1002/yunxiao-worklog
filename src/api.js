@@ -79,6 +79,29 @@
     }
   };
 
+  /**
+   * 普通自定义字段的写入端点，目前只用来写「计划开始 / 计划完成时间」。
+   *
+   * **已抓包实证**（2026-09-15）：在云效列表页就地改日期，把它自己发出的请求**拦在浏览器里**
+   * 录下来（没放行到服务端，刷新后原日期不变）：
+   *   POST /projex/api/workitem/workitem/field/value/{workitemId}?_input_charset=utf-8
+   *   Content-Type: application/x-www-form-urlencoded
+   *   X-Csrf-Token: <页面的 window.csrfToken>     X-Requested-With: XMLHttpRequest
+   *   fieldValueList=[{"fieldIdentifier":"80","value":"2026-09-18 00:00:00"}]   （整段 URL 编码）
+   * 改计划开始时间只是 fieldIdentifier 换成对应字段 id。
+   *
+   * 和工时是两套东西：这里是**赋值**语义（不是追加记录），请求体是「表单里塞一个 JSON 字符串」，
+   * 不是 JSON 请求体。当年按 JSON 往这个路径写工时回 400，工时本来也不走这里。
+   */
+  const FIELD_VALUE_PATH = '/workitem/workitem/field/value/';
+  const DATE_VALUE_SUFFIX = ' 00:00:00';
+
+  // 云效前端（aone-workitem-fe 的 axios 拦截器）给每个请求都带 X-Csrf-Token，值取 window.csrfToken，
+  // 而这个变量是页面内联脚本赋的（公开 bundle 里只读不赋）。content script 在隔离环境里
+  // 读不到页面的 window 变量，只能从 DOM 里的内联脚本文本抠。
+  // 实测 field/value 不强制校验这个头（不带也写成功了），带上只是和云效自己的请求保持一致。
+  const CSRF_RE = /\bcsrfToken["']?\s*[:=]\s*["']([^"'\s]{8,})["']/;
+
   /** 云效要的是带时区偏移的 ISO，比如 2026-08-22T11:27:41+08:00（不是 UTC 的 Z 结尾） */
   function isoWithOffset(d) {
     const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -952,6 +975,157 @@
     return { ok: true, from: before, to: target, delta: delta, endpoint: writer.key };
   }
 
+  /** 读不到就返回空串，调用方就不带这个头（实测不带也能写） */
+  function pageCsrfToken() {
+    if (typeof document === 'undefined' || !document || typeof document.querySelectorAll !== 'function') return '';
+    let scripts = [];
+    try {
+      scripts = document.querySelectorAll('script:not([src])');
+    } catch (e) {
+      return '';
+    }
+    for (let i = 0; i < scripts.length; i++) {
+      const m = CSRF_RE.exec((scripts[i] && scripts[i].textContent) || '');
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  /** 日期字段值 → 'YYYY-MM-DD'；云效存的是 '2026-09-16 00:00:00'，比较只看日期部分 */
+  function ymdOf(v) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(normValue(v));
+    return m ? m[1] + '-' + m[2] + '-' + m[3] : '';
+  }
+
+  function isRealYMD(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+    if (!m) return false;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+  }
+
+  /**
+   * 写日期型自定义字段（计划开始 / 计划完成时间）。赋值语义，和工时的「记录累加」无关。
+   *
+   * 和 saveWorkHours 同一套保守流程：
+   *   1. dryRun（默认）→ 只读当前值返回「旧值 → 新值」，一个写请求都不发
+   *   2. 写前读当前值，日期没变就跳过
+   *   3. 只发一次写请求
+   *   4. 写后按 identifier 重读工作项复核。和工时相反，**读到的仍是旧值就报失败**：
+   *      赋值重试不会叠加，报失败最多让用户再点一次；报成功却会让界面和快照记住一个没落库的日期。
+   *
+   * 不支持清空日期：清空时云效发什么没抓到，不猜。
+   *
+   * @param workitemId 工作项 identifier
+   * @param fieldId    日期字段 id（运行时探测，本组织是 79 / 80）
+   * @param ymd        'YYYY-MM-DD'
+   * @param options    {dryRun}
+   */
+  async function saveDateField(workitemId, fieldId, ymd, options) {
+    const opts = options || {};
+    const dryRun = opts.dryRun !== false;
+    const target = String(ymd || '').trim();
+
+    if (!fieldId) {
+      return { ok: false, error: '没有识别到这个日期字段，无法写入' };
+    }
+    if (!isRealYMD(target)) {
+      return { ok: false, error: '日期必须是 YYYY-MM-DD（收到 ' + (ymd === undefined ? '空' : ymd) + '）' };
+    }
+
+    const readItem = function () {
+      return getWorkitemById(workitemId, { signal: opts.signal });
+    };
+
+    if (dryRun) {
+      let from = null;
+      try {
+        from = customFieldValue(await readItem(), fieldId);
+      } catch (e) {
+        if (isNotLoggedIn(e)) throw e;
+        from = null;
+      }
+      return {
+        ok: true, dryRun: true,
+        would: { workitemId: workitemId, fieldId: fieldId, from: from, to: target }
+      };
+    }
+
+    const item = await readItem();
+    if (!item) {
+      return { ok: false, error: '按 identifier 没重读到这个工作项（可能已删除或没有权限），没有写入' };
+    }
+    const before = customFieldValue(item, fieldId);
+    if (ymdOf(before) === target) {
+      return { ok: true, skipped: 'unchanged', from: before, to: target };
+    }
+
+    const body = 'fieldValueList=' + encodeURIComponent(JSON.stringify([
+      { fieldIdentifier: String(fieldId), value: target + DATE_VALUE_SUFFIX }
+    ]));
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    const token = pageCsrfToken();
+    if (token) headers['X-Csrf-Token'] = token;
+
+    try {
+      await req(FIELD_VALUE_PATH + encodeURIComponent(workitemId), {
+        method: 'POST', body: body, headers: headers
+      });
+    } catch (e) {
+      if (isNotLoggedIn(e)) throw e;
+      const detail = 'fieldValue → ' + ((e && e.message) || '写入失败') +
+        (e && e.code !== undefined && e.code !== null ? '（code ' + e.code + '）' : '') +
+        (e && e.traceId ? ' traceId=' + e.traceId : '');
+      try {
+        console.warn('[云效工时统计] 日期字段写入失败：', {
+          workitemId: workitemId, fieldId: fieldId, body: body, csrf: !!token,
+          error: (e && e.message) || e, code: e && e.code, traceId: e && e.traceId
+        });
+      } catch (ignored) { /* 控制台不可用时静默 */ }
+      return { ok: false, error: detail, attempts: [detail], from: before, to: target };
+    }
+
+    let after = null;
+    let verifyError = null;
+    const waits = [300, 700, 1500];
+    for (let i = 0; i < waits.length; i++) {
+      try {
+        after = customFieldValue(await readItem(), fieldId);
+      } catch (e) {
+        if (isNotLoggedIn(e)) throw e;
+        verifyError = (e && e.message) || '未知错误';
+        break;
+      }
+      if (ymdOf(after) === target) {
+        try {
+          console.info('[云效工时统计] 日期字段已写入：', {
+            workitemId: workitemId, fieldId: fieldId, before: before, target: target, verified: after
+          });
+        } catch (ignored) { /* 控制台不可用时静默 */ }
+        return { ok: true, from: before, to: target, endpoint: 'fieldValue' };
+      }
+      if (i < waits.length - 1) await sleep(waits[i]);
+    }
+
+    if (verifyError) {
+      // 写请求已经 200，只是复核读失败：没有证据说它没写进去，按成功处理并提示刷新确认
+      return {
+        ok: true, unverified: true,
+        error: '已提交，但复核时读不到最新值（' + verifyError + '）',
+        hint: '请刷新页面确认。日期是赋值，确实没写进去的话再提交一次也不会叠加。',
+        from: before, to: target, endpoint: 'fieldValue'
+      };
+    }
+    return {
+      ok: false,
+      error: '云效回了成功，但复核读到的仍是 ' + (ymdOf(after) || '空') + '，没有变成 ' + target,
+      from: before, to: target
+    };
+  }
+
   function pickFieldValue(result, fieldId) {
     const target = String(fieldId);
     const lists = [];
@@ -1082,6 +1256,8 @@
     getWorkitemById: getWorkitemById,
     customFieldValue: customFieldValue,
     saveWorkHours: saveWorkHours,
+    saveDateField: saveDateField,
+    pageCsrfToken: pageCsrfToken,
     pickFieldValue: pickFieldValue,
     cond: cond
   };

@@ -97,6 +97,15 @@
   Y.api.getFieldValues = (id) => Promise.resolve(FX.fieldValues(id));
   Y.api.saveFieldValue = (id, fid, v, o) =>
     Promise.resolve({ ok: true, dryRun: !o || o.dryRun !== false, would: { workitemId: id, fieldId: fid, from: '0', to: v } });
+  // 计划日期写回：预演照常；「允许写回」时假装云效写成功，用来看写后换区间 / 移出统计的效果
+  window.__dateWrites = [];
+  Y.api.saveDateField = (id, fid, ymd, o) => {
+    const dryRun = !o || o.dryRun !== false;
+    window.__dateWrites.push({ id, fid, ymd, dryRun });
+    return Promise.resolve(dryRun
+      ? { ok: true, dryRun: true, would: { workitemId: id, fieldId: fid, from: null, to: ymd } }
+      : { ok: true, to: ymd, endpoint: 'fieldValue' });
+  };
 
   // 预览里切数据集要强制刷新当前精确区间，覆盖本地快照
   function forceReload() {
