@@ -147,9 +147,10 @@
     '.yxp-chip-alt{background:var(--yxp-edit);color:var(--yxp-warn);}',
     '.yxp-memberbox{position:relative;}',
     '.yxp-picker{position:absolute;top:calc(100% + 6px);left:0;z-index:2147483001;width:320px;',
-    '  max-height:340px;overflow:auto;background:var(--yxp-bg);border:1px solid var(--yxp-border-strong);',
+    '  max-height:380px;overflow:auto;background:var(--yxp-bg);border:1px solid var(--yxp-border-strong);',
     '  border-radius:12px;box-shadow:0 14px 36px rgba(8,14,26,.28);padding:10px;}',
     '.yxp-picker h4{margin:0 0 8px;font-size:12px;color:var(--yxp-text-dim);font-weight:600;}',
+    '.yxp-membersearch{display:block;width:100%;margin-bottom:8px;}',
     '.yxp-plist{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;overscroll-behavior:contain;}',
     '.yxp-pitem{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;}',
     '.yxp-pitem:hover{background:var(--yxp-bg-sub);}',
@@ -300,6 +301,7 @@
     dailyError: '',         // 跨日自动刷新本月失败时保留旧快照，并在底部提示
     fieldWarn: '',          // 工时字段缺失的提示文案（缺 estimated / actual 时非空）
     pickerOpen: false,
+    memberSearch: '',
     rows: [],
     hasSnapshot: false,     // 当前精确区间是否已经加载并持久化
     snapshotKey: '',
@@ -618,6 +620,7 @@
     add(memberBox, el('span', 'yxp-flabel', '成员'), refs.memberChip);
     const pickBtn = btn('yxp-btn', memberPickLabel(), function () {
       state.pickerOpen = !state.pickerOpen;
+      if (state.pickerOpen) state.memberSearch = '';
       renderFilters();
     });
     refs.memberPickBtn = pickBtn;
@@ -706,7 +709,16 @@
     box.onclick = function (ev) { ev.stopPropagation(); };
     add(box, el('h4', '', '通讯录（本地积累，云效没有可用的成员搜索接口）'));
 
+    const search = el('input', 'yxp-input yxp-membersearch');
+    search.type = 'search';
+    search.placeholder = '搜索成员姓名或 ID';
+    search.setAttribute('aria-label', '搜索成员');
+    search.value = state.memberSearch;
+    add(box, search);
+
     const list = el('div', 'yxp-plist');
+    const entries = [];
+    const selfId = String((state.ctx && state.ctx.userId) || '');
 
     // 「我」也要有一个复选框：只加同事却摘不掉自己，就永远看不了「单看某个人」
     const selfItem = el('div', 'yxp-pitem');
@@ -718,6 +730,7 @@
     add(selfLabel, selfCb, el('span', '', selfName() + '（我）'));
     add(selfItem, selfLabel);
     add(list, selfItem);
+    entries.push({ node: selfItem, text: selfName() + ' 我 ' + selfId });
 
     const ids = Object.keys(state.contacts || {});
     ids.sort(function (a, b) {
@@ -725,7 +738,6 @@
       const nb = (state.contacts[b] && state.contacts[b].name) || b;
       return String(na).localeCompare(String(nb), 'zh-Hans-CN');
     });
-    const selfId = state.ctx && state.ctx.userId;
     let shown = 0;
     ids.forEach(function (id) {
       if (id === selfId) return;
@@ -742,14 +754,31 @@
       rm.title = '从通讯录移除';
       add(item, label, rm);
       add(list, item);
+      entries.push({ node: item, text: (c.name || '') + ' ' + id });
     });
-    if (!shown) {
-      add(list, el('div', 'yxp-status', '通讯录还是空的，先点下面的「从当前视图导入同事」。'));
-    }
+    const emptyContacts = !shown ? el('div', 'yxp-status', '通讯录还是空的，先点下面的「从当前视图导入同事」。') : null;
+    if (emptyContacts) add(list, emptyContacts);
+    const noMatch = el('div', 'yxp-status yxp-hidden', '没有匹配的成员');
+    add(list, noMatch);
+    search.oninput = function () {
+      state.memberSearch = search.value;
+      const keyword = search.value.trim().toLowerCase();
+      let matched = 0;
+      entries.forEach(function (entry) {
+        const visible = !keyword || entry.text.toLowerCase().includes(keyword);
+        entry.node.classList.toggle('yxp-hidden', !visible);
+        if (visible) matched++;
+      });
+      if (emptyContacts) emptyContacts.classList.toggle('yxp-hidden', !!keyword);
+      noMatch.classList.toggle('yxp-hidden', !keyword || matched > 0);
+      list.scrollTop = 0;
+    };
+    search.oninput();
     add(box, list);
 
     const foot = el('div', 'yxp-pfoot');
     refs.importBtn = btn('yxp-btn', '从当前视图导入同事', importColleagues);
+    refs.importBtn.title = '扫描当前项目或视图最多 600 条工作项的负责人，不包含没有任务的成员';
     if (state.importing) setImportBtnBusy(true);
     add(foot,
       refs.importBtn,
