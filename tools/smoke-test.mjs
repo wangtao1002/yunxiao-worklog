@@ -2028,7 +2028,7 @@ const GROUPS = [
 }
 
 /* ------------------------------------------------------------------ *
- * 18. 小组模块空状态：打开模块不应发起成员统计请求
+ * 18. 小组模块空状态与排名折叠交互
  * ------------------------------------------------------------------ */
 
 {
@@ -2108,6 +2108,25 @@ const GROUPS = [
   rangeData.resolve = async () => { statsRequests++; throw new Error('空组不应解析统计范围'); };
   rangeData.readSnapshot = async () => { statsRequests++; throw new Error('空组不应读取统计快照'); };
   rangeData.fetchSnapshot = async () => { statsRequests++; throw new Error('空组不应拉取统计数据'); };
+  function findAll(node, match) {
+    const found = [];
+    (function visit(current) {
+      if (match(current)) found.push(current);
+      (current.children || []).forEach(visit);
+    })(node);
+    return found;
+  }
+  const withClass = (node, cls) => node.classList && node.classList.contains(cls);
+  const cards = () => findAll(root, (node) => withClass(node, 'tmt-scorecard'));
+  const cardName = (card) => {
+    const title = findAll(card, (node) => withClass(node, 'tmt-scoretitle'))[0];
+    return title && title.textContent;
+  };
+  const cardByName = (name) => cards().find((card) => cardName(card) === name);
+  const cardControl = (card) => findAll(card, (node) => withClass(node, 'tmt-scoretop'))[0];
+  const memberArea = (card) => findAll(card, (node) => withClass(node, 'tmt-members'))[0];
+  const action = (label) => findAll(root, (node) => node.tagName === 'BUTTON' && node.textContent === label)[0];
+  const foldState = (card) => [cardControl(card).getAttribute('aria-expanded'), memberArea(card).hidden];
   try {
     await store.setGroups('org-empty-ui', []);
     load('src/team-panel.js');
@@ -2120,9 +2139,62 @@ const GROUPS = [
       visibleText.includes('还没有自定义小组') && visibleText.includes('新建第一个小组'));
     eq('未建自定义小组时打开模块不请求成员工时', statsRequests, 0);
     YXWT.teamPanel.close();
+
+    await store.setGroups('org-empty-ui', [
+      { id: 'fold-a', name: '测试甲组', memberIds: ['fold-user-a'] },
+      { id: 'fold-b', name: '测试乙组', memberIds: ['fold-user-b'] }
+    ]);
+    const scope = {
+      ctx: { orgId: 'org-empty-ui' },
+      members: [{ id: 'fold-user-a', name: '甲成员' }, { id: 'fold-user-b', name: '乙成员' }],
+      fieldMap: { estimated: { id: 'fold-est' }, actual: { id: 'fold-act' } }
+    };
+    const snapshot = {
+      savedAt: Date.now(), truncated: false, memberErrors: [],
+      rows: [
+        { id: 'fold-task-a', assigneeId: 'fold-user-a', est: 6, act: 1 },
+        { id: 'fold-task-b', assigneeId: 'fold-user-b', est: 2, act: 8 }
+      ]
+    };
+    rangeData.resolve = async () => scope;
+    rangeData.readSnapshot = async () => snapshot;
+    rangeData.fetchSnapshot = async () => { throw new Error('模拟快照已提供，不应联网'); };
+    await YXWT.teamPanel.open();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    eq('有小组数据时生成两张排名卡片', cards().map(cardName), ['测试甲组', '测试乙组']);
+    eq('小组成员明细默认收起，按钮状态与内容一致', cards().map(foldState),
+      [['false', true], ['false', true]]);
+    ok('每组折叠按钮关联自己的成员明细', cards().every((card) =>
+      cardControl(card).tagName === 'BUTTON' &&
+      cardControl(card).getAttribute('aria-controls') === memberArea(card).id));
+
+    const firstCard = cardByName('测试甲组');
+    const body = findAll(root, (node) => withClass(node, 'yx-body'))[0];
+    body.scrollTop = 137;
+    cardControl(firstCard).onclick();
+    eq('单组展开不影响其它组', cards().map(foldState), [['true', false], ['false', true]]);
+    ok('单组展开不重建卡片且不改变滚动位置', cardByName('测试甲组') === firstCard && body.scrollTop === 137);
+
+    action('全部展开').onclick();
+    eq('全部展开显示每组成员明细', cards().map(foldState), [['true', false], ['true', false]]);
+    action('全部收起').onclick();
+    eq('全部收起隐藏每组成员明细', cards().map(foldState), [['false', true], ['false', true]]);
+
+    cardControl(cardByName('测试甲组')).onclick();
+    const basis = findAll(root, (node) => node.tagName === 'SELECT' &&
+      node.children.some((child) => child.textContent === '实际工时'))[0];
+    basis.value = 'act';
+    basis.onchange();
+    eq('切换排名口径后按实际工时重新排序', cards().map(cardName), ['测试乙组', '测试甲组']);
+    eq('重新渲染后按小组保留展开状态',
+      [foldState(cardByName('测试甲组')), foldState(cardByName('测试乙组'))],
+      [['true', false], ['false', true]]);
+    YXWT.teamPanel.close();
   } catch (e) {
-    ok('未建自定义小组时能打开独立模块', false, e && e.message);
+    ok('小组模块空状态与折叠交互可运行', false, e && e.message);
   } finally {
+    YXWT.teamPanel.close();
     YXWT.ui.h = original.h;
     YXWT.ui.mount = original.mount;
     YXWT.ui.icon = original.icon;
@@ -2147,4 +2219,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log('✓ 冒烟测试全绿：' + pass + ' 项断言通过');
-console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / teamStats(组内合计·组间排名·不完整数据) / teamPanel(空组无请求) / store(组织隔离的小组) / memberSource(共享视图导入) / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / api.saveDateField(计划日期写入·拦截式抓包端点) / store.patchRangeSnapshots(改日期换区间) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');
+console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / teamStats(组内合计·组间排名·不完整数据) / teamPanel(空组无请求·成员明细折叠) / store(组织隔离的小组) / memberSource(共享视图导入) / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / api.saveDateField(计划日期写入·拦截式抓包端点) / store.patchRangeSnapshots(改日期换区间) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');

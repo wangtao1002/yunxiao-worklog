@@ -44,8 +44,14 @@
     '.tmt-score{display:flex;flex-direction:column;gap:11px;}',
     '.tmt-scorecard{background:var(--yx-surface);border:1px solid var(--yx-border);',
     '  border-radius:10px;overflow:hidden;}',
-    '.tmt-scoretop{display:grid;grid-template-columns:40px minmax(0,1fr) auto;',
-    '  gap:10px;align-items:center;padding:12px 14px;}',
+    '.tmt-scoretop{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;',
+    '  gap:10px;align-items:center;width:100%;padding:12px 14px;border:0;',
+    '  background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;}',
+    '.tmt-scoretop:hover{background:var(--yx-surface-2);}',
+    '.tmt-scoretop:focus-visible{outline:2px solid var(--yx-accent);outline-offset:-2px;}',
+    '.tmt-scoretitle{display:block;}',
+    '.tmt-reportactions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;}',
+    '.tmt-expand{color:var(--yx-accent);font-size:12px;white-space:nowrap;}',
     '.tmt-rank{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;',
     '  color:var(--yx-accent);background:var(--yx-accent-soft);font-weight:700;}',
     '.tmt-rank.is-incomplete{color:var(--yx-warn);background:var(--yx-surface-2);}',
@@ -67,8 +73,9 @@
     '  align-items:center;gap:10px;color:var(--yx-text-dim);}',
     '.tmt-empty strong{font-size:16px;color:var(--yx-text);}',
     '.tmt-footmsg{font-size:12px;color:var(--yx-text-dim);}',
-    '@media(max-width:820px){.tmt-layout{grid-template-columns:1fr;}.tmt-scoretop{grid-template-columns:40px 1fr;}',
-    '  .tmt-metrics{grid-column:2;justify-content:flex-start;}.tmt-member{grid-template-columns:minmax(0,1fr) 70px 70px 45px;}}'
+    '@media(max-width:820px){.tmt-layout{grid-template-columns:1fr;}.tmt-scoretop{grid-template-columns:40px minmax(0,1fr) auto;}',
+    '  .tmt-metrics{grid-column:2;justify-content:flex-start;}.tmt-expand{grid-column:3;grid-row:1/3;}',
+    '  .tmt-member{grid-template-columns:minmax(0,1fr) 70px 70px 45px;}}'
   ].join('\n');
 
   const state = {
@@ -79,6 +86,7 @@
     ctx: null,
     prefs: {},
     groups: [],
+    expandedGroupIds: Object.create(null),
     contacts: {},
     rangeKey: '',
     start: '',
@@ -639,8 +647,10 @@
     if (!refs.report) return;
     const report = clear(refs.report);
     const header = el('div', 'tmt-reporthead');
-    add(header, el('h2', '', '小组排名'), el('span', 'yx-sub', state.start && state.end
+    const actions = el('div', 'tmt-reportactions');
+    add(actions, el('span', 'yx-sub', state.start && state.end
       ? state.start + ' 至 ' + state.end : ''));
+    add(header, el('h2', '', '小组排名'), actions);
     add(report, header);
     if (state.error && !state.ctx) {
       const failure = el('div', 'yx-card tmt-empty');
@@ -706,23 +716,47 @@
       add(report, note(summary.incompleteCount + ' 个小组数据不完整（成员加载失败、未查询、字段缺失或结果截断），暂不参与正式排名。', 'tmt-alert'));
     }
     const list = el('div', 'tmt-score');
-    summary.groups.forEach(function (group) {
+    const scoreCards = [];
+    function setExpanded(view, expanded) {
+      view.people.hidden = !expanded;
+      view.toggle.setAttribute('aria-expanded', String(expanded));
+      view.hint.textContent = expanded ? '收起成员 ▲' : '展开成员 ▼';
+      if (expanded) state.expandedGroupIds[view.id] = true;
+      else delete state.expandedGroupIds[view.id];
+    }
+    add(actions,
+      button('全部展开', function () {
+        scoreCards.forEach(function (view) { setExpanded(view, true); });
+      }),
+      button('全部收起', function () {
+        scoreCards.forEach(function (view) { setExpanded(view, false); });
+      })
+    );
+    summary.groups.forEach(function (group, index) {
       const card = el('div', 'tmt-scorecard');
-      const top = el('div', 'tmt-scoretop');
-      const rank = el('div', 'tmt-rank' + (group.complete ? '' : ' is-incomplete'),
+      const top = el('button', 'tmt-scoretop');
+      top.type = 'button';
+      const rank = el('span', 'tmt-rank' + (group.complete ? '' : ' is-incomplete'),
         group.complete ? String(group.rank) : '—');
-      const name = el('div', '');
-      add(name, el('div', 'tmt-scoretitle', group.name),
-        el('div', 'yx-sub', group.members.length + ' 人 · ' + group.count + ' 条任务' +
+      const name = el('span', '');
+      add(name, el('span', 'tmt-scoretitle', group.name),
+        el('span', 'yx-sub', group.members.length + ' 人 · ' + group.count + ' 条任务' +
           (group.complete ? '' : ' · 数据不完整')));
-      const metrics = el('div', 'tmt-metrics');
+      const metrics = el('span', 'tmt-metrics');
       add(metrics,
         metric('预计', group.est, state.basis === 'est'),
         metric('实际', group.act, state.basis === 'act')
       );
-      add(top, rank, name, metrics);
+      const hint = el('span', 'tmt-expand');
+      add(top, rank, name, metrics, hint);
       add(card, top);
       const people = el('div', 'tmt-members');
+      people.id = HOST_ID + '-members-' + index;
+      top.setAttribute('aria-controls', people.id);
+      const view = { id: group.id, toggle: top, hint: hint, people: people };
+      setExpanded(view, !!state.expandedGroupIds[group.id]);
+      top.onclick = function () { setExpanded(view, people.hidden); };
+      scoreCards.push(view);
       const columns = el('div', 'tmt-member is-head');
       add(columns,
         el('span', '', '成员'),
@@ -839,6 +873,7 @@
     state.snapshot = null;
     state.ctx = null;
     state.groups = [];
+    state.expandedGroupIds = Object.create(null);
     state.contacts = {};
     state.editingId = null;
     state.editIds = [];
