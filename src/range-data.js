@@ -200,7 +200,11 @@
     let truncated = false;
     results.forEach(function (r, i) {
       if (!r || r.__error) {
-        memberErrors.push({ name: members[i].name, error: errText(r && r.__error ? { message: r.__error } : null) });
+        memberErrors.push({
+          id: members[i].id,
+          name: members[i].name,
+          error: errText(r && r.__error ? { message: r.__error } : null)
+        });
         return;
       }
       if (r.truncated) truncated = true;

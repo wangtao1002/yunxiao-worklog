@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云效工时统计
 // @namespace    https://devops.aliyun.com/
-// @version      0.3.4
+// @version      0.3.5
 // @description  在阿里云云效 Projex 里一键统计工时：列表合计、日历热力图、团队对比、导出日报周报。所有数据只在本地处理。
 // @author       abner
 // @license      MIT
@@ -21,7 +21,7 @@
   'use strict';
 
   window.YXWT = window.YXWT || {};
-  window.YXWT.__version = "0.3.4";
+  window.YXWT.__version = "0.3.5";
   window.YXWT.__optionsHtml = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>云效工时统计 · 设置<\/title><style>\n  *, *::before, *::after { box-sizing: border-box; }\n\n  :root {\n    --bg: #f4f6fa;\n    --bg-soft: #edf1f8;\n    --card: #ffffff;\n    --border: #e2e8f2;\n    --border-strong: #ccd6e6;\n    --text: #17202c;\n    --muted: #66738a;\n    --accent: #2f6bff;\n    --accent-ink: #ffffff;\n    --accent-soft: rgba(47, 107, 255, .10);\n    --danger: #cf3438;\n    --danger-soft: rgba(207, 52, 56, .09);\n    --ok: #1c8b52;\n    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px rgba(16, 24, 40, .06);\n    --radius: 12px;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :root:not([data-theme=\"light\"]) {\n      --bg: #0e1118;\n      --bg-soft: #151a24;\n      --card: #161b25;\n      --border: #262d3b;\n      --border-strong: #3a4457;\n      --text: #e7ecf4;\n      --muted: #8d99ad;\n      --accent: #6d9bff;\n      --accent-ink: #0e1118;\n      --accent-soft: rgba(109, 155, 255, .14);\n      --danger: #ff6f72;\n      --danger-soft: rgba(255, 111, 114, .13);\n      --ok: #4ecb8a;\n      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n    }\n  }\n\n  :root[data-theme=\"dark\"] {\n    --bg: #0e1118;\n    --bg-soft: #151a24;\n    --card: #161b25;\n    --border: #262d3b;\n    --border-strong: #3a4457;\n    --text: #e7ecf4;\n    --muted: #8d99ad;\n    --accent: #6d9bff;\n    --accent-ink: #0e1118;\n    --accent-soft: rgba(109, 155, 255, .14);\n    --danger: #ff6f72;\n    --danger-soft: rgba(255, 111, 114, .13);\n    --ok: #4ecb8a;\n    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .35);\n  }\n\n  html { color-scheme: light dark; }\n\n  body {\n    margin: 0;\n    background: var(--bg);\n    color: var(--text);\n    font-family: -apple-system, \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif;\n    font-size: 14px;\n    line-height: 1.55;\n    -webkit-font-smoothing: antialiased;\n  }\n\n  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n  .num, input[type=\"number\"] { font-variant-numeric: tabular-nums; }\n\n  .wrap { max-width: 920px; margin: 0 auto; padding: 34px 20px 72px; }\n\n  /* 顶部 */\n  .hd { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }\n  .hd .logo { width: 42px; height: 42px; flex: none; border-radius: 11px; box-shadow: var(--shadow); }\n  .hd h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: .2px; }\n  .hd .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }\n  .hd .ver {\n    margin-left: auto; font-size: 12px; color: var(--muted);\n    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--card);\n  }\n\n  /* 卡片 */\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);\n    box-shadow: var(--shadow); padding: 6px 22px 20px; margin-bottom: 18px;\n  }\n  .card > h2 {\n    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;\n    margin: 0; padding: 16px 0 12px; font-size: 14.5px; font-weight: 650;\n  }\n  .card > h2 .tools { margin-left: auto; display: flex; gap: 8px; }\n  .card > h2::before {\n    content: \"\"; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); flex: none;\n  }\n  .card.danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }\n  .card.danger > h2::before { background: var(--danger); }\n  .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }\n\n  /* 设置行 */\n  .row {\n    display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px;\n    align-items: center; padding: 13px 0; border-top: 1px solid var(--border);\n  }\n  .row.top { align-items: start; }\n  .lb { font-size: 13px; font-weight: 600; }\n  .lb small { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }\n\n  input[type=\"text\"], input[type=\"number\"], select {\n    width: 100%; max-width: 320px; padding: 7px 10px; font: inherit; font-size: 13px;\n    color: var(--text); background: var(--bg-soft);\n    border: 1px solid var(--border-strong); border-radius: 8px; outline: none;\n  }\n  input[type=\"number\"] { max-width: 130px; }\n  input[type=\"text\"]:focus, input[type=\"number\"]:focus, select:focus {\n    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card);\n  }\n  input[type=\"checkbox\"], input[type=\"radio\"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }\n  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }\n  .unit { margin-left: 8px; font-size: 12.5px; color: var(--muted); }\n  .field { display: flex; align-items: center; }\n\n  .metric-picks { display: flex; flex-wrap: wrap; gap: 8px; max-width: 620px; }\n  .metric-pick {\n    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;\n    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-soft);\n    font-size: 12.5px; cursor: pointer; user-select: none;\n  }\n  .metric-pick.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .metric-pick.fixed { cursor: default; }\n  .metric-pick .required { font-size: 10.5px; color: var(--muted); }\n  .metric-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }\n  .metric-note { color: var(--muted); font-size: 12px; }\n\n  .radios { display: flex; flex-direction: column; gap: 9px; }\n  .radios label { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; font-size: 13px; }\n  .radios label span small { display: block; color: var(--muted); font-size: 12px; }\n  .warn {\n    margin-top: 4px; padding: 10px 12px; border: 1px solid var(--danger);\n    background: var(--danger-soft); color: var(--danger);\n    border-radius: 9px; font-size: 12.5px; line-height: 1.65;\n  }\n  .warn strong { font-weight: 650; }\n  /* 读取本地设置失败时整块表单锁死，避免呈现一个「看着能改、其实存不进去」的界面 */\n  .is-disabled { opacity: .5; }\n  [hidden] { display: none !important; }\n\n  /* 按钮 */\n  .btn {\n    font: inherit; font-size: 12.5px; padding: 6px 13px; border-radius: 8px; cursor: pointer;\n    border: 1px solid var(--border-strong); background: var(--card); color: var(--text);\n    transition: background .12s, border-color .12s, opacity .12s;\n  }\n  .btn:hover { border-color: var(--accent); color: var(--accent); }\n  .btn:disabled { opacity: .5; cursor: default; border-color: var(--border-strong); color: var(--muted); }\n  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }\n  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }\n  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }\n  .btn.danger:hover { background: var(--danger-soft); }\n  .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 7px; }\n  .btn.link { border: 0; background: none; color: var(--muted); padding: 3px 6px; }\n  .btn.link:hover { color: var(--danger); }\n\n  /* 组织块（字段映射 / 通讯录共用） */\n  .org { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); padding: 14px 16px; margin-bottom: 14px; }\n  .org:last-child { margin-bottom: 0; }\n  .org-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }\n  .org-hd .oid { font-size: 12px; color: var(--muted); word-break: break-all; }\n  .tag {\n    font-size: 11px; padding: 1px 8px; border-radius: 999px;\n    border: 1px solid var(--border-strong); color: var(--muted); background: var(--card); white-space: nowrap;\n  }\n  .tag.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }\n  .org-hd .sp { margin-left: auto; display: flex; gap: 8px; }\n\n  .fm-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }\n  .fm-row .k { font-size: 12.5px; font-weight: 600; }\n  .fm-row .k small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }\n  .fm-row input { max-width: none; background: var(--card); }\n  .fm-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }\n  .fm-foot .note { font-size: 12px; color: var(--muted); }\n\n  .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }\n  .person { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }\n  .avatar {\n    width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover;\n    background: var(--accent-soft); color: var(--accent);\n    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650;\n  }\n  .person .who { min-width: 0; flex: 1; }\n  .person .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .person .uid { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n\n  .empty {\n    padding: 18px; border: 1px dashed var(--border-strong); border-radius: 10px;\n    color: var(--muted); font-size: 12.5px; text-align: center;\n  }\n\n  /* 页脚 */\n  .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }\n  .foot details { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0 14px; }\n  .foot summary { cursor: pointer; padding: 10px 0; font-size: 12.5px; color: var(--text); }\n  .foot details p { margin: 0 0 12px; line-height: 1.7; }\n\n  /* toast */\n  .toast {\n    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);\n    padding: 9px 18px; border-radius: 999px; font-size: 13px;\n    background: var(--card); color: var(--text); border: 1px solid var(--border-strong);\n    box-shadow: var(--shadow); opacity: 0; pointer-events: none;\n    transition: opacity .16s ease, transform .16s ease; z-index: 2147483000;\n  }\n  .toast.show { opacity: 1; transform: translate(-50%, 0); }\n  .toast.success { border-color: var(--ok); color: var(--ok); }\n  .toast.error { border-color: var(--danger); color: var(--danger); }\n\n  /* 确认弹窗 */\n  .mask {\n    position: fixed; inset: 0; background: rgba(9, 12, 18, .48);\n    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 2147483001;\n  }\n  .dialog {\n    width: 100%; max-width: 400px; background: var(--card); color: var(--text);\n    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;\n  }\n  .dialog h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }\n  .dialog p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }\n  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }\n\n  @media (max-width: 680px) {\n    .row { grid-template-columns: 1fr; gap: 8px; }\n    .fm-row { grid-template-columns: 1fr; }\n    .fm-row .k { margin-top: 4px; }\n  }\n<\/style><\/head><body>\n<div class=\"wrap\">\n\n  <header class=\"hd\">\n    <svg class=\"logo\" viewBox=\"0 0 48 48\" aria-hidden=\"true\">\n      <defs>\n        <linearGradient id=\"lg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n          <stop offset=\"0\" stop-color=\"#4d84ff\"/>\n          <stop offset=\"1\" stop-color=\"#1b47cf\"/>\n        <\/linearGradient>\n      <\/defs>\n      <rect x=\"0\" y=\"0\" width=\"48\" height=\"48\" rx=\"11\" fill=\"url(#lg)\"/>\n      <rect x=\"11\" y=\"27\" width=\"6\" height=\"11\" rx=\"2\" fill=\"#fff\" opacity=\".82\"/>\n      <rect x=\"21\" y=\"20\" width=\"6\" height=\"18\" rx=\"2\" fill=\"#fff\" opacity=\".92\"/>\n      <rect x=\"31\" y=\"12\" width=\"6\" height=\"26\" rx=\"2\" fill=\"#fff\"/>\n    <\/svg>\n    <div>\n      <h1>云效工时统计<\/h1>\n      <p class=\"sub\">本地设置 · 所有数据只保存在这台浏览器里<\/p>\n    <\/div>\n    <span class=\"ver\" id=\"ver\">v-<\/span>\n  <\/header>\n\n  <div class=\"warn\" id=\"fatal\" hidden><\/div>\n\n  <section class=\"card general\" id=\"general\">\n    <h2>常规设置<\/h2>\n\n    <div class=\"row\">\n      <div class=\"lb\">每日标准工时<small>用于日历热力图判断某天工时是否不足<\/small><\/div>\n      <div class=\"field\">\n        <input type=\"number\" id=\"dailyTargetHours\" min=\"0\" max=\"24\" step=\"0.5\" class=\"num\">\n        <span class=\"unit\">小时 / 天<\/span>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认归集口径<small>把一个工作项算到哪一天头上<\/small><\/div>\n      <div><select id=\"dateBasis\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">任务状态范围<small>全部任务，或仅统计云效已标记完成的任务<\/small><\/div>\n      <div><select id=\"taskScope\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">达标工时口径<small>“工时偏差”和“截止今日工时偏差”拿哪组工时与工作日目标比较<\/small><\/div>\n      <div>\n        <select id=\"workDiffBasis\"><\/select>\n        <div class=\"hint\" id=\"workDiffBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">默认时间范围<small>悬浮统计和打开面板时默认使用的区间<\/small><\/div>\n      <div><select id=\"defaultRange\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">悬浮条显示项<small>不选择时沿用当前默认样式；自定义后「范围」固定显示<\/small><\/div>\n      <div>\n        <div class=\"metric-picks\" id=\"summaryBarItems\"><\/div>\n        <div class=\"metric-foot\">\n          <span class=\"metric-note\" id=\"summaryBarItemsNote\"><\/span>\n          <button class=\"btn sm\" id=\"summaryBarItemsReset\" type=\"button\" hidden>恢复默认显示<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">排除已取消<small>状态名里带「取消」的工作项不计入统计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"excludeCancelled\"><span>统计时排除已取消的工作项<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">统计展示口径<small>热力图、日均工时、未填提醒和分组排序拿哪个字段当基准<\/small><\/div>\n      <div>\n        <select id=\"hoursBasis\"><\/select>\n        <div class=\"hint\" id=\"hoursBasisHint\"><\/div>\n      <\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">未填工时提醒<small>统计范围里没填工时的任务标红、置顶，合计条上也会显示条数<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"warnMissingEst\"><span>提醒没填工时的任务（按上面的统计展示口径）<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">列表页合计条<small>在云效工作项列表页底部常驻一条合计<\/small><\/div>\n      <div><label class=\"check\"><input type=\"checkbox\" id=\"showSummaryBar\"><span>显示列表页合计条<\/span><\/label><\/div>\n    <\/div>\n\n    <div class=\"row\">\n      <div class=\"lb\">主题<\/div>\n      <div><select id=\"theme\"><\/select><\/div>\n    <\/div>\n\n    <div class=\"row top\">\n      <div class=\"lb\">写入模式<small>面板明细里修改工时（预计 / 实际）和计划开始 / 完成时间后如何处理<\/small><\/div>\n      <div class=\"radios\">\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"dryRun\">\n          <span>只读预演（dry-run）<small>只显示「旧值 → 新值」，不向云效发送任何写请求。推荐。<\/small><\/span>\n        <\/label>\n        <label>\n          <input type=\"radio\" name=\"writeMode\" value=\"live\">\n          <span>允许写回云效<small>确认后逐条写入云效的工作项字段。<\/small><\/span>\n        <\/label>\n        <div class=\"warn\" id=\"live-warn\" hidden>\n          <strong>注意：写回云效不可撤销。<\/strong>\n          云效的字段写入接口是从前端脚本里扫出来的，官方未公开，行为可能随云效改版变化。\n          插件会「先读原值 → 写入 → 再读复核」并逐条列出改动，但仍请先在少量工作项上验证，\n          确认无误后再批量提交。误写的值需要你自己在云效里改回来。\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>\n      工时字段映射\n      <span class=\"tools\"><button class=\"btn\" id=\"btn-redetect\" type=\"button\">重新探测<\/button><\/span>\n    <\/h2>\n    <p class=\"hint\">\n      工时字段的 identifier 每个企业都不一样，插件会在云效页面里自动探测并缓存到本地。\n      本页是扩展页面，无法直接访问云效接口，所以这里只展示已缓存的结果；\n      「重新探测」会通知一个已打开的云效标签页重新探测。手动保存后的映射标记为「手动」，自动探测不会再覆盖它。\n    <\/p>\n    <div id=\"fieldmaps\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>通讯录<\/h2>\n    <p class=\"hint\">\n      云效没有可用的成员搜索接口，团队统计的同事名单靠面板里的「从当前视图导入同事」逐步积累。\n      这里可以删掉不再需要的人。\n    <\/p>\n    <div id=\"contacts\"><\/div>\n  <\/section>\n\n  <section class=\"card danger\">\n    <h2>危险区<\/h2>\n    <p class=\"hint\">清除后字段映射需要重新探测，通讯录需要重新积累，偏好设置回到默认值。云效上的数据不受影响。<\/p>\n    <button class=\"btn danger\" id=\"btn-clear\" type=\"button\">清除全部本地数据<\/button>\n  <\/section>\n\n  <footer class=\"foot\">\n    <span id=\"foot-ver\">云效工时统计<\/span>\n    <details>\n      <summary>隐私说明<\/summary>\n      <p>\n        本插件不收集、不上传任何数据，也没有任何埋点或远程配置。\n        所有统计都在你的浏览器里完成，网络请求只发往你正在使用的云效（devops.aliyun.com）；\n        设置、字段映射和通讯录只保存在浏览器本地的 chrome.storage.local 里，\n        随时可以用上面的「清除全部本地数据」删掉。插件不含任何第三方脚本或远程资源。\n      <\/p>\n    <\/details>\n  <\/footer>\n\n<\/div>\n\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"><\/div>\n\n<div class=\"mask\" id=\"mask\" hidden>\n  <div class=\"dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"m-title\">\n    <h3 id=\"m-title\"><\/h3>\n    <p id=\"m-body\"><\/p>\n    <div class=\"dlg-actions\">\n      <button class=\"btn\" id=\"m-cancel\" type=\"button\">取消<\/button>\n      <button class=\"btn primary\" id=\"m-ok\" type=\"button\">确定<\/button>\n    <\/div>\n  <\/div>\n<\/div>\n\n\n\n\n<\/body><\/html>";
 
   // ---- options.js（原文照搬，只把 window / document 从全局改成形参）----
@@ -1478,6 +1478,7 @@
     context: null,       // 最后一次成功识别的身份，仅在推不出当前组织时作降级回退
     // 团队视图里额外纳入的 userId，同样必须按组织分桶：userId 只在本组织有意义
     membersByOrg: {},    // { [orgId]: [userId] }
+    groupsByOrg: {},     // { [orgId]: [{id, name, memberIds}] }，自定义小组只保存在本地
     // 按“组织 + 成员 + 口径 + 起止日期”保存的统计快照。只留最近 12 份，避免撑爆 storage.local。
     rangeSnapshots: {},  // { [cacheKey]: {savedAt, rows, ...} }
     prefs: {
@@ -1782,6 +1783,75 @@
     });
   }
 
+  function normalizeGroups(groups, strict) {
+    if (!Array.isArray(groups)) {
+      if (strict) throw new Error('小组配置必须是数组');
+      return [];
+    }
+    const seen = new Set();
+    const out = [];
+    groups.forEach(function (group) {
+      if (!isPlainObject(group) || !Array.isArray(group.memberIds)) {
+        if (strict) throw new Error('小组配置格式无效');
+        return;
+      }
+      const id = typeof group.id === 'string' ? group.id.trim() : '';
+      const name = typeof group.name === 'string' ? group.name.trim().replace(/\s+/g, ' ') : '';
+      if (!id || id.length > 128 || !name || name.length > 80 || seen.has(id)) {
+        if (strict) throw new Error('小组 ID 或名称无效，或小组 ID 重复');
+        return;
+      }
+      const members = [];
+      const memberSeen = new Set();
+      group.memberIds.forEach(function (rawId) {
+        const memberId = typeof rawId === 'string' ? rawId.trim() : '';
+        if (!memberId || memberId.length > 256) {
+          if (strict) throw new Error('小组成员 ID 无效');
+          return;
+        }
+        if (memberSeen.has(memberId)) return;
+        memberSeen.add(memberId);
+        members.push(memberId);
+      });
+      seen.add(id);
+      out.push({ id: id, name: name, memberIds: members });
+    });
+    return out;
+  }
+
+  function getGroups(orgId) {
+    const key = String(orgId || '');
+    if (!key || key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return Promise.resolve([]);
+    }
+    return get().then(function (cfg) {
+      return normalizeGroups(cfg.groupsByOrg[key], false);
+    });
+  }
+
+  function setGroups(orgId, groups) {
+    const key = String(orgId || '');
+    if (!key || key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return Promise.reject(new Error('未识别到有效组织，无法保存小组'));
+    }
+    let list;
+    try {
+      list = normalizeGroups(groups, true);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const byOrg = clone(cfg.groupsByOrg);
+        byOrg[key] = list;
+        return rawSet({ groupsByOrg: byOrg }).then(function () {
+          return clone(list);
+        });
+      });
+    });
+  }
+
   function getContext(orgId) {
     const key = String(orgId || '');
     return get().then(function (cfg) {
@@ -1837,7 +1907,7 @@
       return null;
     }
     const id = String(u.identifier || u.id || '').trim();
-    if (!id) {
+    if (!id || id === '__proto__' || id === 'constructor' || id === 'prototype') {
       return null;
     }
     let name = '';
@@ -2107,6 +2177,8 @@
     setFieldMap: setFieldMap,
     getMembers: getMembers,
     setMembers: setMembers,
+    getGroups: getGroups,
+    setGroups: setGroups,
     getContext: getContext,
     setContext: setContext,
     getContacts: getContacts,
@@ -4608,6 +4680,152 @@
  */
 
 
+  /* ================= src/team-stats.js ================= */
+/**
+ * YXWT.teamStats —— 自定义小组的成员工时、小组总工时与排名。
+ * 只汇总传入的小组成员；工作项和成员名单由调用方按同一区间准备。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+
+  function idOf(value) {
+    return value === null || value === undefined ? '' : String(value).trim();
+  }
+
+  function toHours(value) {
+    const n = Number(value);
+    return isFinite(n) ? n : 0;
+  }
+
+  function round2(value) {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  function bySelectedHours(a, b, field) {
+    if (b[field] !== a[field]) return b[field] - a[field];
+    if (b.count !== a.count) return b.count - a.count;
+    return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN');
+  }
+
+  /**
+   * @param groups [{id, name, memberIds}]
+   * @param members 本次实际请求的成员名单 [{id, name}]
+   * @param rows stats.normalize() 生成的工作项
+   * @param options {basis:'est'|'act', memberErrors:[{id,name,error}], truncated:boolean}
+   *
+   * 未加载成功的成员、未请求的成员和截断结果不能作为 0 工时参加正式排名。
+   * 同一成员可以属于多个组，各组分别累计；调用方不应把各组总量相加成组织总量。
+   */
+  function aggregate(groups, members, rows, options) {
+    const opts = options || {};
+    const field = opts.basis === 'act' ? 'act' : 'est';
+    const roster = Object.create(null);
+    (Array.isArray(members) ? members : []).forEach(function (member) {
+      const id = idOf(member && member.id);
+      if (!id) return;
+      roster[id] = { id: id, name: idOf(member.name) || id };
+    });
+
+    const totals = Object.create(null);
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      const id = idOf(row && row.assigneeId);
+      if (!id || !roster[id]) return;
+      if (!totals[id]) totals[id] = { count: 0, est: 0, act: 0 };
+      totals[id].count += 1;
+      totals[id].est += toHours(row.est);
+      totals[id].act += toHours(row.act);
+    });
+
+    const failures = Object.create(null);
+    let unknownFailure = false;
+    (Array.isArray(opts.memberErrors) ? opts.memberErrors : []).forEach(function (failure) {
+      const error = idOf(failure && failure.error) || '加载失败';
+      const id = idOf(failure && failure.id);
+      if (id) {
+        failures[id] = error;
+        return;
+      }
+      // 兼容旧快照只有姓名的错误项。同名时全部标记不完整，不能误判为 0 工时。
+      const name = idOf(failure && failure.name);
+      const matched = Object.keys(roster).filter(function (memberId) {
+        return roster[memberId].name === name;
+      });
+      if (!matched.length) unknownFailure = true;
+      matched.forEach(function (memberId) { failures[memberId] = error; });
+    });
+
+    const truncated = opts.truncated === true;
+    const result = (Array.isArray(groups) ? groups : []).map(function (group) {
+      const ids = [];
+      const seen = Object.create(null);
+      (Array.isArray(group && group.memberIds) ? group.memberIds : []).forEach(function (rawId) {
+        const id = idOf(rawId);
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        ids.push(id);
+      });
+      const people = ids.map(function (id) {
+        const found = roster[id];
+        const sum = totals[id] || { count: 0, est: 0, act: 0 };
+        const error = failures[id] || (!found ? '成员未参与本次查询' : '');
+        return {
+          id: id,
+          name: found ? found.name : id,
+          count: sum.count,
+          est: round2(sum.est),
+          act: round2(sum.act),
+          complete: !error && !truncated && !unknownFailure,
+          error: error
+        };
+      });
+      people.sort(function (a, b) { return bySelectedHours(a, b, field); });
+      const failedMemberIds = people.filter(function (member) {
+        return !!member.error;
+      }).map(function (member) { return member.id; });
+      const est = round2(people.reduce(function (total, member) { return total + member.est; }, 0));
+      const act = round2(people.reduce(function (total, member) { return total + member.act; }, 0));
+      return {
+        id: idOf(group && group.id),
+        name: idOf(group && group.name),
+        memberIds: ids,
+        members: people,
+        count: people.reduce(function (total, member) { return total + member.count; }, 0),
+        est: est,
+        act: act,
+        complete: ids.length > 0 && failedMemberIds.length === 0 && !truncated && !unknownFailure,
+        rank: null,
+        failedMemberIds: failedMemberIds
+      };
+    });
+
+    result.sort(function (a, b) {
+      if (a.complete !== b.complete) return a.complete ? -1 : 1;
+      return bySelectedHours(a, b, field);
+    });
+    let rankableCount = 0;
+    let previousHours = null;
+    let currentRank = 0;
+    result.forEach(function (group) {
+      if (!group.complete) return;
+      rankableCount += 1;
+      const value = group[field];
+      if (previousHours === null || value !== previousHours) currentRank = rankableCount;
+      group.rank = currentRank;
+      previousHours = value;
+    });
+    return {
+      groups: result,
+      rankableCount: rankableCount,
+      incompleteCount: result.length - rankableCount
+    };
+  }
+
+  NS.teamStats = { aggregate: aggregate };
+})();
+
+
   /* ================= src/workcalendar.js ================= */
 /**
  * YXWT.workcalendar —— 中国大陆法定节假日 / 调休补班日历（纯本地数据）。
@@ -4902,7 +5120,11 @@
     let truncated = false;
     results.forEach(function (r, i) {
       if (!r || r.__error) {
-        memberErrors.push({ name: members[i].name, error: errText(r && r.__error ? { message: r.__error } : null) });
+        memberErrors.push({
+          id: members[i].id,
+          name: members[i].name,
+          error: errText(r && r.__error ? { message: r.__error } : null)
+        });
         return;
       }
       if (r.truncated) truncated = true;
@@ -5932,6 +6154,72 @@ button,input,select,textarea{font:inherit;color:inherit;}
 })();
 
 
+  /* ================= src/member-source.js ================= */
+/**
+ * YXWT.memberSource —— 从当前工作项视图收集负责人到本地通讯录。
+ * 只能发现当前视图里有工作项的人，不能代表组织全员。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+
+  async function currentPageQuery(ctx) {
+    const project = /\/projex\/project\/([0-9a-zA-Z]+)/.exec(location.pathname || '');
+    if (project) {
+      return { spaceType: 'Project', spaceIdentifier: project[1], category: '', conditionGroups: [[]] };
+    }
+    const view = /viewIdentifier=([0-9a-zA-Z_-]+)/.exec(location.hash || '');
+    if (!view) return null;
+    const detail = await NS.api.getView(view[1]);
+    if (!detail) return null;
+    const space = NS.api.normalizeViewSpace(detail, ctx && ctx.userId);
+    const query = {
+      spaceType: space.spaceType,
+      spaceIdentifier: space.spaceIdentifier,
+      category: '',
+      conditionGroups: NS.api.viewFilterToGroups(detail.filter)
+    };
+    if (space.scope !== undefined) query.scope = space.scope;
+    return query;
+  }
+
+  async function importCurrentView(ctx) {
+    const orgId = String((ctx && ctx.orgId) || '');
+    if (!orgId) throw new Error('还没识别到当前组织');
+    const pageRoute = (location.pathname || '') + (location.hash || '');
+    const query = await currentPageQuery(ctx);
+    if (!query) throw new Error('当前页面不是工作项列表页或项目页，先切到列表页再导入');
+    const result = await NS.api.listWorkitems(Object.assign({ pageSize: 200, maxPages: 3 }, query));
+    const current = await NS.detect.context(true);
+    if ((current && current.stale) || String((current && current.orgId) || '') !== orgId ||
+      pageRoute !== (location.pathname || '') + (location.hash || '')) {
+      throw new Error('导入期间云效页面或组织已切换，请重新打开当前视图再导入');
+    }
+    const users = [];
+    const seen = Object.create(null);
+    (result.items || []).forEach(function (item) {
+      const person = item && item.assignedTo;
+      const id = person && person.identifier;
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      users.push(person);
+    });
+    if (users.length) await NS.store.addContacts(orgId, users);
+    const selfId = String((ctx && ctx.userId) || '');
+    return {
+      colleagueCount: users.filter(function (person) {
+        return String(person.identifier) !== selfId;
+      }).length,
+      totalCount: users.length,
+      truncated: !!result.truncated
+    };
+  }
+
+  NS.memberSource = { importCurrentView: importCurrentView };
+})();
+
+
   /* ================= src/panel.js ================= */
 /**
  * YXWT.panel —— 主面板：顶栏 / 筛选 / 概览卡 / 日历热力图 / 分组统计 / 明细表 / 底部工具条。
@@ -6450,6 +6738,10 @@ button,input,select,textarea{font:inherit;color:inherit;}
       el('div', 'yxp-title', '云效工时统计'),
       org,
       el('div', 'yxp-spacer'),
+      btn('yxp-btn primary', '小组统计', function () {
+        close();
+        NS.teamPanel.open();
+      }),
       btn('yxp-x', '✕', close)
     );
 
@@ -8652,34 +8944,6 @@ button,input,select,textarea{font:inherit;color:inherit;}
 
   /* ---------------------------------------------------------------- 从当前视图导入同事 */
 
-  // 视图 filter -> conditionGroups 统一走 api.viewFilterToGroups（曾经 panel/summarybar 各写一份，行为不一致）
-  const viewFilterToGroups = function (f) { return NS.api.viewFilterToGroups(f); };
-
-  async function currentPageQuery() {
-    const pm = /\/projex\/project\/([0-9a-zA-Z]+)/.exec(location.pathname || '');
-    if (pm) {
-      return { spaceType: 'Project', spaceIdentifier: pm[1], category: '', conditionGroups: [[]] };
-    }
-    const vm = /viewIdentifier=([0-9a-zA-Z_-]+)/.exec(location.hash || '');
-    if (vm) {
-      const view = await NS.api.getView(vm[1]);
-      if (!view) return null;
-      // 内置视图（我负责的 / 近期我参与 / 待我验证…）的 spaceIdentifier 是字面量 'system'，
-      // 原样拿去查会恒返回 0 条、然后提示「这一页没扫到负责人」。统一走 api.normalizeViewSpace
-      // 回落到当前用户（summarybar 也用同一个函数，避免再漏第三处）。
-      const space = NS.api.normalizeViewSpace(view, state.ctx && state.ctx.userId);
-      const q = {
-        spaceType: space.spaceType,
-        spaceIdentifier: space.spaceIdentifier,
-        category: '',
-        conditionGroups: viewFilterToGroups(view.filter)
-      };
-      if (space.scope !== undefined) q.scope = space.scope;
-      return q;
-    }
-    return null;
-  }
-
   async function importColleagues() {
     // store 的通讯录按 orgId 分桶，orgId 为空时写不进去，别给用户一个假的成功提示
     if (!state.ctx || !state.ctx.orgId) { toast('还没识别到当前组织，先点刷新', 'error'); return; }
@@ -8688,39 +8952,21 @@ button,input,select,textarea{font:inherit;color:inherit;}
     state.importing = true;
     setImportBtnBusy(true);
     try {
-      const q = await currentPageQuery();
-      if (!q) {
-        toast('当前页面不是工作项列表页或项目页，先切到列表页再导入', 'error');
-        return;
-      }
-      const res = await NS.api.listWorkitems(Object.assign({ pageSize: 200, maxPages: 3 }, q));
-      const users = [];
-      const seen = {};
-      (res.items || []).forEach(function (it) {
-        const a = it && it.assignedTo;
-        const id = a && a.identifier;
-        if (!id || seen[id]) return;
-        seen[id] = 1;
-        users.push(a);
-      });
-      if (!users.length) {
+      const result = await NS.memberSource.importCurrentView(state.ctx);
+      if (!result.totalCount) {
         toast('这一页没扫到负责人', 'info');
         return;
       }
-      // 通讯录里把自己也存着无妨，但成员选择器不展示自己（buildMemberPicker 会跳过 selfId），
-      // 所以提示必须按「除我之外的人数」报，否则个人视图下会出现「已导入 1 位同事」+ 列表仍是空的
-      const selfId = String((state.ctx && state.ctx.userId) || '');
-      const others = users.filter(function (u) { return String(u && u.identifier) !== selfId; });
-      await NS.store.addContacts(state.ctx.orgId, users);
       state.contacts = (await NS.store.getContacts(state.ctx.orgId)) || {};
       state.contactsSig = contactsSig(state.contacts);
       invalidateMemberPicker();
       renderFilters();
-      if (!others.length) {
+      if (!result.colleagueCount) {
         toast('当前视图里只有你自己的工作项，没导入到同事。换成项目工作项列表页或含他人任务的视图再试。', 'info');
         return;
       }
-      toast('已导入 ' + others.length + ' 位同事到通讯录', 'success');
+      toast('已导入 ' + result.colleagueCount + ' 位同事到通讯录' +
+        (result.truncated ? '（视图仅扫描前 600 条工作项）' : ''), 'success');
     } catch (e) {
       toast('导入失败：' + errMsg(e), 'error');
     } finally {
@@ -8742,6 +8988,904 @@ button,input,select,textarea{font:inherit;color:inherit;}
     close: close,
     isOpen: isOpen
   };
+})();
+
+
+  /* ================= src/team-panel.js ================= */
+/**
+ * YXWT.teamPanel —— 独立的小组工时统计模块。
+ * 只查询用户自定义小组中的成员；没有小组时不发工时统计请求。
+ */
+(function () {
+  'use strict';
+
+  const NS = (window.YXWT = window.YXWT || {});
+  const U = NS.util;
+  const HOST_ID = 'yxwt-team-host';
+  const CSS = [
+    '.tmt-mask.yx-hide{display:none !important;}',
+    '.tmt-panel{max-width:1200px;}',
+    '.tmt-logo{width:29px;height:29px;display:grid;place-items:center;border-radius:9px;',
+    '  background:var(--yx-accent);color:var(--yx-on-accent);font-weight:700;}',
+    '.tmt-org{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+    '  padding:3px 9px;border-radius:20px;background:var(--yx-surface-2);color:var(--yx-text-dim);font-size:12px;}',
+    '.tmt-filter{display:flex;flex-direction:column;gap:9px;padding:12px 16px;',
+    '  background:var(--yx-surface);border-bottom:1px solid var(--yx-border);}',
+    '.tmt-filter .yx-row{gap:7px;}',
+    '.tmt-date{width:140px;}',
+    '.tmt-layout{display:grid;grid-template-columns:290px minmax(0,1fr);gap:14px;align-items:start;}',
+    '.tmt-side,.tmt-report{min-width:0;}',
+    '.tmt-side{display:flex;flex-direction:column;gap:10px;}',
+    '.tmt-sidehead,.tmt-reporthead{display:flex;align-items:center;gap:8px;justify-content:space-between;}',
+    '.tmt-sidehead h2,.tmt-reporthead h2{font-size:14px;margin:0;}',
+    '.tmt-groupitem{display:flex;align-items:center;gap:6px;padding:8px 0;',
+    '  border-bottom:1px solid var(--yx-border);}',
+    '.tmt-groupitem:last-child{border-bottom:0;}',
+    '.tmt-groupname{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+    '.tmt-sidehint{font-size:11px;color:var(--yx-text-dim);line-height:1.5;}',
+    '.tmt-editor{display:flex;flex-direction:column;gap:9px;border-color:var(--yx-accent);}',
+    '.tmt-editor h3{margin:0;font-size:13px;}',
+    '.tmt-editor .yx-input{width:100%;}',
+    '.tmt-people{max-height:230px;overflow:auto;border:1px solid var(--yx-border);',
+    '  border-radius:8px;padding:3px 7px;}',
+    '.tmt-person{display:flex;align-items:center;gap:7px;min-height:30px;padding:3px;',
+    '  border-bottom:1px solid var(--yx-border);}',
+    '.tmt-person:last-child{border-bottom:0;}',
+    '.tmt-person label{min-width:0;display:flex;align-items:center;gap:7px;cursor:pointer;}',
+    '.tmt-person span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+    '.tmt-manual{display:grid;grid-template-columns:1fr 1fr;gap:6px;}',
+    '.tmt-manual button{grid-column:1/-1;}',
+    '.tmt-score{display:flex;flex-direction:column;gap:11px;}',
+    '.tmt-scorecard{background:var(--yx-surface);border:1px solid var(--yx-border);',
+    '  border-radius:10px;overflow:hidden;}',
+    '.tmt-scoretop{display:grid;grid-template-columns:40px minmax(0,1fr) auto;',
+    '  gap:10px;align-items:center;padding:12px 14px;}',
+    '.tmt-rank{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;',
+    '  color:var(--yx-accent);background:var(--yx-accent-soft);font-weight:700;}',
+    '.tmt-rank.is-incomplete{color:var(--yx-warn);background:var(--yx-surface-2);}',
+    '.tmt-scoretitle{font-weight:650;font-size:14px;}',
+    '.tmt-metrics{display:flex;gap:14px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;}',
+    '.tmt-metrics strong{font-size:17px;color:var(--yx-text);font-variant-numeric:tabular-nums;}',
+    '.tmt-metrics .is-main strong{color:var(--yx-accent);}',
+    '.tmt-members{border-top:1px solid var(--yx-border);padding:3px 14px 8px;}',
+    '.tmt-member{display:grid;grid-template-columns:minmax(0,1fr) 90px 90px 62px;',
+    '  gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--yx-border);font-size:12px;}',
+    '.tmt-member:last-child{border-bottom:0;}',
+    '.tmt-member > :not(:first-child){text-align:right;font-variant-numeric:tabular-nums;}',
+    '.tmt-member.is-head{color:var(--yx-text-dim);font-size:11px;}',
+    '.tmt-member.is-failed{color:var(--yx-warn);}',
+    '.tmt-note{font-size:12px;color:var(--yx-text-dim);line-height:1.55;}',
+    '.tmt-alert{padding:9px 11px;border-radius:8px;background:var(--yx-surface-2);',
+    '  color:var(--yx-warn);font-size:12px;}',
+    '.tmt-empty{padding:44px 20px;text-align:center;display:flex;flex-direction:column;',
+    '  align-items:center;gap:10px;color:var(--yx-text-dim);}',
+    '.tmt-empty strong{font-size:16px;color:var(--yx-text);}',
+    '.tmt-footmsg{font-size:12px;color:var(--yx-text-dim);}',
+    '@media(max-width:820px){.tmt-layout{grid-template-columns:1fr;}.tmt-scoretop{grid-template-columns:40px 1fr;}',
+    '  .tmt-metrics{grid-column:2;justify-content:flex-start;}.tmt-member{grid-template-columns:minmax(0,1fr) 70px 70px 45px;}}'
+  ].join('\n');
+
+  const state = {
+    mounted: false,
+    open: false,
+    loading: false,
+    importing: false,
+    ctx: null,
+    prefs: {},
+    groups: [],
+    contacts: {},
+    rangeKey: '',
+    start: '',
+    end: '',
+    dateBasis: 'planEnd',
+    basis: 'est',
+    scope: null,
+    snapshot: null,
+    error: '',
+    rangeError: '',
+    progress: null,
+    editingId: null,
+    editName: '',
+    editIds: [],
+    saving: false,
+    memberSearch: '',
+    initSeq: 0,
+    reqSeq: 0,
+    scrollLock: null
+  };
+  const refs = {};
+
+  function el(tag, cls, value) {
+    return NS.ui.h(tag, { class: cls || '', text: value == null ? '' : String(value) });
+  }
+
+  function add(parent) {
+    for (let i = 1; i < arguments.length; i++) {
+      if (arguments[i]) parent.appendChild(arguments[i]);
+    }
+    return parent;
+  }
+
+  function clear(node) {
+    while (node && node.firstChild) node.removeChild(node.firstChild);
+    return node;
+  }
+
+  function button(label, click, cls) {
+    const b = el('button', 'yx-btn' + (cls ? ' ' + cls : ''), label);
+    b.type = 'button';
+    b.onclick = click;
+    return b;
+  }
+
+  function input(type, value, placeholder, cls) {
+    const node = el('input', 'yx-input' + (cls ? ' ' + cls : ''));
+    node.type = type;
+    node.value = value || '';
+    if (placeholder) node.placeholder = placeholder;
+    return node;
+  }
+
+  function note(message, cls) {
+    return el('div', cls || 'tmt-note', message);
+  }
+
+  function toast(message, type) {
+    NS.ui.toast(refs.root, message, type || 'info');
+  }
+
+  function errorText(error) {
+    const value = error && error.message ? String(error.message) : String(error || '未知错误');
+    return value === 'YXWT_NOT_LOGGED_IN' ? '未登录云效或登录已过期' : value;
+  }
+
+  function hours(value) {
+    return U.fmtHours(Number(value) || 0) + 'h';
+  }
+
+  function lockScroll() {
+    const html = document.documentElement;
+    const body = document.body;
+    state.scrollLock = { html: html ? html.style.overflow : '', body: body ? body.style.overflow : '' };
+    if (html) html.style.overflow = 'hidden';
+    if (body) body.style.overflow = 'hidden';
+  }
+
+  function unlockScroll() {
+    if (!state.scrollLock) return;
+    if (document.documentElement) document.documentElement.style.overflow = state.scrollLock.html;
+    if (document.body) document.body.style.overflow = state.scrollLock.body;
+    state.scrollLock = null;
+  }
+
+  function ensureMounted() {
+    if (state.mounted) return;
+    const mounted = NS.ui.mount(HOST_ID);
+    refs.root = mounted.root;
+    refs.host = mounted.host;
+    const style = document.createElement('style');
+    style.textContent = CSS;
+    refs.root.appendChild(style);
+    const mask = el('div', 'yx-mask tmt-mask yx-hide');
+    mask.onclick = function (event) { if (event.target === mask) close(); };
+    const panel = el('div', 'yx-panel tmt-panel');
+    const head = el('div', 'yx-head');
+    refs.org = el('span', 'tmt-org', '正在识别组织…');
+    add(head,
+      el('span', 'tmt-logo', 'H'),
+      el('h1', 'yx-title', '小组工时统计'),
+      refs.org,
+      el('span', 'yx-grow'),
+      button('返回总览', backToOverview, 'is-ghost'),
+      button('关闭', close, 'is-ghost')
+    );
+    refs.filters = el('div', 'tmt-filter');
+    refs.body = el('div', 'yx-body');
+    const foot = el('div', 'yx-foot');
+    refs.foot = el('span', 'tmt-footmsg', '自定义小组只保存在本机当前浏览器。');
+    add(foot, refs.foot);
+    add(panel, head, refs.filters, refs.body, foot);
+    add(mask, panel);
+    refs.root.appendChild(mask);
+    refs.mask = mask;
+    refs.keydown = function (event) {
+      if (!state.open || (event.key !== 'Escape' && event.key !== 'Esc')) return;
+      if (refs.root.querySelector('.yx-dlgmask')) return;
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener('keydown', refs.keydown, true);
+    state.mounted = true;
+  }
+
+  function close() {
+    if (!state.open) return;
+    state.open = false;
+    state.reqSeq++;
+    state.initSeq++;
+    state.saving = false;
+    state.importing = false;
+    refs.mask.classList.add('yx-hide');
+    unlockScroll();
+  }
+
+  function showOrgChanged() {
+    state.reqSeq++;
+    state.initSeq++;
+    state.loading = false;
+    state.saving = false;
+    state.importing = false;
+    state.ctx = null;
+    state.groups = [];
+    state.contacts = {};
+    state.scope = null;
+    state.snapshot = null;
+    state.editingId = null;
+    state.error = '云效组织已切换，请重新打开小组统计以读取当前组织的小组。';
+    refs.org.textContent = '组织已切换';
+    render();
+  }
+
+  async function ensureCurrentOrg(orgId, token) {
+    const current = await NS.detect.context(true);
+    if (!state.open || token !== state.initSeq) return false;
+    if (current && current.stale) throw new Error('当前组织身份暂不可验证，请稍后重试。');
+    if (String((current && current.orgId) || '') === String(orgId || '')) return true;
+    showOrgChanged();
+    return false;
+  }
+
+  function backToOverview() {
+    close();
+    NS.panel.open();
+  }
+
+  function selectedIds() {
+    const seen = Object.create(null);
+    const ids = [];
+    state.groups.forEach(function (group) {
+      (group.memberIds || []).forEach(function (id) {
+        const key = String(id || '');
+        if (!key || seen[key]) return;
+        seen[key] = true;
+        ids.push(key);
+      });
+    });
+    return ids.sort();
+  }
+
+  function selectedKey() {
+    return JSON.stringify(selectedIds());
+  }
+
+  function applyRangePreset(key) {
+    const preset = U.rangePresets().filter(function (item) { return item.key === key; })[0];
+    if (!preset) return;
+    state.rangeKey = key;
+    state.start = preset.start;
+    state.end = preset.end;
+    state.rangeError = '';
+    renderFilters();
+    load(true);
+  }
+
+  function onCustomDate(start, end) {
+    state.start = start;
+    state.end = end;
+    state.rangeKey = 'custom';
+    if (!start || !end || start > end) {
+      state.reqSeq++;
+      state.loading = false;
+      state.scope = null;
+      state.snapshot = null;
+      state.progress = null;
+      state.rangeError = !start || !end ? '请选择完整的开始和结束日期。' : '开始日期不能晚于结束日期。';
+      renderFilters();
+      renderReport();
+      renderFoot();
+      return;
+    }
+    state.rangeError = '';
+    renderFilters();
+    load(true);
+  }
+
+  function renderFilters() {
+    if (!refs.filters) return;
+    const box = clear(refs.filters);
+    const row1 = el('div', 'yx-row');
+    add(row1, el('span', 'yx-label', '时间范围'));
+    const presets = el('div', 'yx-seg');
+    U.rangePresets().forEach(function (preset) {
+      const b = el('button', state.rangeKey === preset.key ? 'is-on' : '', preset.label);
+      b.type = 'button';
+      b.onclick = function () { applyRangePreset(preset.key); };
+      add(presets, b);
+    });
+    const start = input('date', state.start, '', 'tmt-date');
+    const end = input('date', state.end, '', 'tmt-date');
+    start.setAttribute('aria-label', '开始日期');
+    end.setAttribute('aria-label', '结束日期');
+    start.onchange = function () { onCustomDate(start.value, end.value); };
+    end.onchange = function () { onCustomDate(start.value, end.value); };
+    add(row1, presets, start, el('span', 'yx-label', '至'), end);
+
+    const row2 = el('div', 'yx-row');
+    add(row2, el('span', 'yx-label', '任务归集日期'));
+    const dateBasis = el('select', 'yx-select');
+    [
+      ['planEnd', '计划完成时间'],
+      ['finishTime', '实际完成时间'],
+      ['planStart', '计划开始时间']
+    ].forEach(function (pair) {
+      const option = el('option', '', pair[1]);
+      option.value = pair[0];
+      add(dateBasis, option);
+    });
+    dateBasis.value = state.dateBasis;
+    dateBasis.onchange = function () {
+      state.dateBasis = dateBasis.value;
+      load(true);
+    };
+    add(row2, dateBasis, el('span', 'yx-label', '排名按'));
+    const basis = el('select', 'yx-select');
+    [['est', '预计工时'], ['act', '实际工时']].forEach(function (pair) {
+      const option = el('option', '', pair[1]);
+      option.value = pair[0];
+      add(basis, option);
+    });
+    basis.value = state.basis;
+    basis.onchange = function () {
+      state.basis = basis.value;
+      renderReport();
+    };
+    const refresh = button('刷新这个区间', function () { load(false); });
+    refresh.disabled = !state.groups.length || !selectedIds().length || state.loading ||
+      !state.start || !state.end || !!state.rangeError;
+    add(row2, basis, refresh);
+    if (state.rangeError) add(row2, note(state.rangeError, 'tmt-alert'));
+    add(box, row1, row2);
+  }
+
+  function render() {
+    renderFilters();
+    const body = clear(refs.body);
+    const layout = el('div', 'tmt-layout');
+    refs.side = el('div', 'tmt-side');
+    refs.report = el('div', 'tmt-report');
+    add(layout, refs.side, refs.report);
+    add(body, layout);
+    renderSide();
+    renderReport();
+    renderFoot();
+  }
+
+  function renderSide() {
+    const side = clear(refs.side);
+    const list = el('div', 'yx-card');
+    const head = el('div', 'tmt-sidehead');
+    add(head, el('h2', '', '我的小组'), button('＋ 新建', function () { startEdit(null); }, 'is-primary is-sm'));
+    add(list, head);
+    if (!state.groups.length) add(list, note('尚未创建小组。创建后才会查询成员工时。'));
+    state.groups.forEach(function (group) {
+      const item = el('div', 'tmt-groupitem');
+      const name = el('span', 'tmt-groupname', group.name);
+      name.title = group.name;
+      add(item,
+        name,
+        el('span', 'yx-grow'),
+        el('span', 'yx-sub', group.memberIds.length + ' 人'),
+        button('编辑', function () { startEdit(group); }, 'is-sm'),
+        button('删除', function () { deleteGroup(group); }, 'is-ghost is-sm')
+      );
+      add(list, item);
+    });
+    add(side, list);
+    if (state.editingId !== null) renderEditor();
+    add(side, note('成员可加入多个组；每组独立统计，组间有重叠时不要把各组总工时相加。', 'tmt-sidehint'));
+  }
+
+  function startEdit(group) {
+    if (state.saving) return;
+    state.editingId = group ? group.id : '';
+    state.editName = group ? group.name : '';
+    state.editIds = group ? group.memberIds.slice() : [];
+    state.memberSearch = '';
+    renderSide();
+    if (refs.editNameInput) refs.editNameInput.focus();
+  }
+
+  function cancelEdit() {
+    if (state.saving) return;
+    state.editingId = null;
+    state.editIds = [];
+    renderSide();
+  }
+
+  function renderEditor() {
+    const editor = el('div', 'yx-card tmt-editor');
+    add(editor, el('h3', '', state.editingId ? '编辑小组' : '新建小组'));
+    const name = input('text', state.editName, '小组名称，如研发一组');
+    name.maxLength = 60;
+    name.setAttribute('aria-label', '小组名称');
+    name.oninput = function () { state.editName = name.value; };
+    refs.editNameInput = name;
+    add(editor, name);
+
+    const search = input('search', state.memberSearch, '搜索姓名或成员 ID');
+    search.setAttribute('aria-label', '搜索小组成员');
+    add(editor, search);
+    const list = el('div', 'tmt-people');
+    const candidates = Object.create(null);
+    Object.keys(state.contacts || {}).forEach(function (id) {
+      candidates[id] = (state.contacts[id] && state.contacts[id].name) || id;
+    });
+    if (state.ctx && state.ctx.userId) candidates[String(state.ctx.userId)] = (state.ctx.name || '我') + '（我）';
+    state.editIds.forEach(function (id) { if (!candidates[id]) candidates[id] = id; });
+    const entries = [];
+    Object.keys(candidates).sort(function (a, b) {
+      return candidates[a].localeCompare(candidates[b], 'zh-Hans-CN');
+    }).forEach(function (id) {
+      const row = el('div', 'tmt-person');
+      const label = el('label', '');
+      const checkbox = el('input', '');
+      checkbox.type = 'checkbox';
+      checkbox.setAttribute('aria-label', '选择' + candidates[id]);
+      checkbox.checked = state.editIds.indexOf(id) >= 0;
+      checkbox.onchange = function () {
+        const index = state.editIds.indexOf(id);
+        if (checkbox.checked && index < 0) state.editIds.push(id);
+        if (!checkbox.checked && index >= 0) state.editIds.splice(index, 1);
+        if (refs.editCount) refs.editCount.textContent = '已选 ' + state.editIds.length + ' 人';
+      };
+      add(label, checkbox, el('span', '', candidates[id]));
+      label.title = id;
+      add(row, label);
+      add(list, row);
+      entries.push({ node: row, text: (candidates[id] + ' ' + id).toLowerCase() });
+    });
+    if (!entries.length) add(list, note('通讯录为空。可从当前视图导入同事，或手动填写成员 ID。'));
+    const noMatch = note('没有匹配的成员');
+    noMatch.classList.add('yx-hide');
+    add(list, noMatch);
+    search.oninput = function () {
+      state.memberSearch = search.value;
+      const key = search.value.trim().toLowerCase();
+      let shown = 0;
+      entries.forEach(function (entry) {
+        const visible = !key || entry.text.includes(key);
+        entry.node.classList.toggle('yx-hide', !visible);
+        if (visible) shown++;
+      });
+      noMatch.classList.toggle('yx-hide', !key || shown > 0);
+      list.scrollTop = 0;
+    };
+    search.oninput();
+    add(editor, list);
+    refs.editCount = note('已选 ' + state.editIds.length + ' 人');
+    add(editor, refs.editCount);
+    const importBtn = button(state.importing ? '正在扫描视图…' : '从当前视图导入同事', importMembers, 'is-sm');
+    importBtn.disabled = state.importing;
+    importBtn.title = '扫描当前项目或视图最多 600 条工作项的负责人，不包含没有任务的成员';
+    add(editor, importBtn);
+
+    const manual = el('div', 'tmt-manual');
+    const manualId = input('text', '', '成员 ID');
+    const manualName = input('text', '', '姓名（可选）');
+    manualId.maxLength = 128;
+    manualName.maxLength = 80;
+    add(manual, manualId, manualName, button('按成员 ID 添加', async function () {
+      const token = state.initSeq;
+      const orgId = state.ctx && state.ctx.orgId;
+      const id = manualId.value.trim();
+      if (!id || id.length > 128 || /\s|[\u0000-\u001f\u007f]/.test(id) ||
+        id === '__proto__' || id === 'constructor' || id === 'prototype') {
+        toast('请输入有效的成员 ID（不含空格或控制字符）。', 'error');
+        return;
+      }
+      const displayName = manualName.value.trim() || id;
+      try {
+        if (!await ensureCurrentOrg(orgId, token)) return;
+        await NS.store.addContacts(orgId, { identifier: id, displayName: displayName });
+        const contacts = await NS.store.getContacts(orgId);
+        if (!state.open || token !== state.initSeq) return;
+        state.contacts = contacts;
+        if (state.editIds.indexOf(id) < 0) state.editIds.push(id);
+        renderSide();
+      } catch (error) {
+        if (state.open && token === state.initSeq) toast('添加成员失败：' + errorText(error), 'error');
+      }
+    }, 'is-sm'));
+    add(editor, manual);
+    const actions = el('div', 'yx-row');
+    const save = button(state.saving ? '正在保存…' : '保存小组', saveGroup, 'is-primary');
+    save.disabled = state.saving;
+    add(actions, save, button('取消', cancelEdit, 'is-ghost'));
+    add(editor, actions);
+    add(refs.side, editor);
+  }
+
+  async function importMembers() {
+    if (state.importing || !state.ctx) return;
+    const token = state.initSeq;
+    const ctx = state.ctx;
+    state.importing = true;
+    renderSide();
+    try {
+      if (!await ensureCurrentOrg(ctx.orgId, token)) return;
+      const result = await NS.memberSource.importCurrentView(ctx);
+      const contacts = await NS.store.getContacts(ctx.orgId);
+      if (!state.open || token !== state.initSeq) return;
+      state.contacts = contacts;
+      renderSide();
+      if (!result.totalCount) toast('当前视图没有扫到负责人', 'info');
+      else if (!result.colleagueCount) toast('当前视图只有自己的工作项，请切换项目列表或其他视图。', 'info');
+      else toast('导入 ' + result.colleagueCount + ' 位同事' +
+        (result.truncated ? '；只扫描了前 600 条工作项' : ''), 'success');
+    } catch (error) {
+      if (state.open && token === state.initSeq) toast('导入失败：' + errorText(error), 'error');
+    } finally {
+      if (state.open && token === state.initSeq) {
+        state.importing = false;
+        renderSide();
+      }
+    }
+  }
+
+  async function saveGroup() {
+    if (state.saving) return;
+    const token = state.initSeq;
+    const orgId = state.ctx && state.ctx.orgId;
+    const name = state.editName.trim().replace(/\s+/g, ' ');
+    if (!name) { toast('请填写小组名称。', 'error'); return; }
+    if (!state.editIds.length) { toast('请至少选择一位成员。', 'error'); return; }
+    if (state.groups.some(function (group) {
+      return group.name === name && group.id !== state.editingId;
+    })) { toast('已有同名小组，请换一个名称。', 'error'); return; }
+    const before = selectedKey();
+    const next = state.groups.map(function (group) {
+      return group.id === state.editingId
+        ? { id: group.id, name: name, memberIds: state.editIds.slice() }
+        : group;
+    });
+    if (!state.editingId) {
+      const id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      next.push({ id: id, name: name, memberIds: state.editIds.slice() });
+    }
+    state.saving = true;
+    renderSide();
+    try {
+      if (!await ensureCurrentOrg(orgId, token)) return;
+      const groups = await NS.store.setGroups(orgId, next);
+      if (!state.open || token !== state.initSeq) return;
+      state.groups = groups;
+      state.editingId = null;
+      state.editIds = [];
+      if (selectedKey() !== before) {
+        state.scope = null;
+        state.snapshot = null;
+        state.error = '';
+        render();
+        load(true);
+      } else {
+        render();
+      }
+      toast('小组已保存', 'success');
+    } catch (error) {
+      if (state.open && token === state.initSeq) toast('保存小组失败：' + errorText(error), 'error');
+    } finally {
+      if (state.open && token === state.initSeq) {
+        state.saving = false;
+        renderSide();
+      }
+    }
+  }
+
+  async function deleteGroup(group) {
+    if (state.saving) return;
+    const token = state.initSeq;
+    const orgId = state.ctx && state.ctx.orgId;
+    const confirmed = await NS.ui.confirmDialog(refs.root, {
+      title: '删除小组',
+      body: '确定删除「' + group.name + '」吗？只会删除本地小组配置。',
+      okText: '删除',
+      danger: true
+    });
+    if (!confirmed || !state.open || token !== state.initSeq) return;
+    const before = selectedKey();
+    try {
+      if (!await ensureCurrentOrg(orgId, token)) return;
+      const groups = await NS.store.setGroups(orgId, state.groups.filter(function (item) {
+        return item.id !== group.id;
+      }));
+      if (!state.open || token !== state.initSeq) return;
+      state.groups = groups;
+      if (state.editingId === group.id) state.editingId = null;
+      if (selectedKey() !== before) {
+        state.reqSeq++;
+        state.scope = null;
+        state.snapshot = null;
+        state.error = '';
+      }
+      render();
+      if (state.groups.length && selectedIds().length && selectedKey() !== before) load(true);
+    } catch (error) {
+      if (state.open && token === state.initSeq) toast('删除失败：' + errorText(error), 'error');
+    }
+  }
+
+  function renderFoot() {
+    if (!refs.foot) return;
+    if (state.loading && state.progress) {
+      refs.foot.textContent = '正在查询 ' + state.progress.done + '/' + state.progress.total +
+        ' 位成员，已取 ' + state.progress.loaded + ' 条工作项…';
+    } else if (state.rangeError) {
+      refs.foot.textContent = '日期范围无效，未查询工时。';
+    } else if (state.snapshot) {
+      refs.foot.textContent = '本地快照：' + new Date(state.snapshot.savedAt).toLocaleString() +
+        ' · 小组配置仅保存在本机当前浏览器';
+    } else {
+      refs.foot.textContent = '小组配置仅保存在本机当前浏览器；没有自定义小组时不查询工时。';
+    }
+  }
+
+  function renderReport() {
+    if (!refs.report) return;
+    const report = clear(refs.report);
+    const header = el('div', 'tmt-reporthead');
+    add(header, el('h2', '', '小组排名'), el('span', 'yx-sub', state.start && state.end
+      ? state.start + ' 至 ' + state.end : ''));
+    add(report, header);
+    if (state.error && !state.ctx) {
+      const failure = el('div', 'yx-card tmt-empty');
+      add(failure, el('strong', '', '无法读取当前组织'), note(state.error),
+        button('重试', function () { close(); open(); }, 'is-primary'));
+      add(report, failure);
+      return;
+    }
+    if (!state.groups.length) {
+      const empty = el('div', 'yx-card tmt-empty');
+      add(empty,
+        el('strong', '', '还没有自定义小组'),
+        note('新建小组并选入成员后，才会查询这些人的工时并生成排名。'),
+        button('新建第一个小组', function () { startEdit(null); }, 'is-primary')
+      );
+      add(report, empty);
+      return;
+    }
+    if (!selectedIds().length) {
+      add(report, el('div', 'yx-card tmt-empty', '请先给小组添加成员。'));
+      return;
+    }
+    if (state.rangeError) {
+      add(report, el('div', 'yx-card tmt-empty', state.rangeError));
+      return;
+    }
+    if (state.loading && !state.snapshot) {
+      const loading = el('div', 'yx-card tmt-empty');
+      add(loading, el('strong', '', '正在查询小组成员工时…'), note('每位成员分别查询，人数较多时需要一些时间。'));
+      add(report, loading);
+      return;
+    }
+    if (state.error) {
+      const failure = el('div', 'yx-card tmt-empty');
+      add(failure, el('strong', '', '统计未完成'), note(state.error), button('重新查询', function () {
+        load(false);
+      }, 'is-primary'));
+      add(report, failure);
+      return;
+    }
+    if (!state.snapshot || !state.scope) {
+      add(report, el('div', 'yx-card tmt-empty', '等待加载工时数据…'));
+      return;
+    }
+    const selectedField = state.basis === 'act' ? 'actual' : 'estimated';
+    const fieldMissing = !state.scope.fieldMap || !state.scope.fieldMap[selectedField] ||
+      !state.scope.fieldMap[selectedField].id;
+    const rows = NS.stats.filterByTaskScope(state.snapshot.rows,
+      state.prefs.taskScope === 'completed' ? 'completed' : 'all');
+    const summary = NS.teamStats.aggregate(state.groups, state.scope.members, rows, {
+      basis: state.basis,
+      memberErrors: state.snapshot.memberErrors,
+      truncated: state.snapshot.truncated || fieldMissing
+    });
+    add(report, note('按任务的' + ({ planEnd: '计划完成时间', finishTime: '实际完成时间', planStart: '计划开始时间' }[state.dateBasis]) +
+      '归集整条预计/实际工时；这不是按每日工时登记记录统计。' +
+      (state.prefs.taskScope === 'completed' ? '当前仅统计已完成任务。' : '当前统计全部任务。')));
+    if (state.dateBasis === 'finishTime') add(report, note('实际完成口径先按计划完成时间扩展前后各 ' +
+      NS.rangeData.FINISH_PAD_DAYS + ' 天查询，再按完成时间过滤；区间外任务可能遗漏。', 'tmt-alert'));
+    if (state.scope.fieldWarn) add(report, note(state.scope.fieldWarn, 'tmt-alert'));
+    if (fieldMissing) add(report, note('排名使用的工时字段未识别，暂不提供正式排名。', 'tmt-alert'));
+    if (summary.incompleteCount) {
+      add(report, note(summary.incompleteCount + ' 个小组数据不完整（成员加载失败、未查询、字段缺失或结果截断），暂不参与正式排名。', 'tmt-alert'));
+    }
+    const list = el('div', 'tmt-score');
+    summary.groups.forEach(function (group) {
+      const card = el('div', 'tmt-scorecard');
+      const top = el('div', 'tmt-scoretop');
+      const rank = el('div', 'tmt-rank' + (group.complete ? '' : ' is-incomplete'),
+        group.complete ? String(group.rank) : '—');
+      const name = el('div', '');
+      add(name, el('div', 'tmt-scoretitle', group.name),
+        el('div', 'yx-sub', group.members.length + ' 人 · ' + group.count + ' 条任务' +
+          (group.complete ? '' : ' · 数据不完整')));
+      const metrics = el('div', 'tmt-metrics');
+      add(metrics,
+        metric('预计', group.est, state.basis === 'est'),
+        metric('实际', group.act, state.basis === 'act')
+      );
+      add(top, rank, name, metrics);
+      add(card, top);
+      const people = el('div', 'tmt-members');
+      const columns = el('div', 'tmt-member is-head');
+      add(columns,
+        el('span', '', '成员'),
+        el('span', '', '预计工时'),
+        el('span', '', '实际工时'),
+        el('span', '', '任务')
+      );
+      add(people, columns);
+      group.members.forEach(function (member) {
+        const row = el('div', 'tmt-member' + (member.complete ? '' : ' is-failed'));
+        const label = el('span', '', member.name + (member.error ? '（加载失败）' : ''));
+        label.title = member.error || member.id;
+        add(row,
+          label,
+          el('span', '', member.error ? '—' : hours(member.est)),
+          el('span', '', member.error ? '—' : hours(member.act)),
+          el('span', '', member.error ? '—' : member.count)
+        );
+        add(people, row);
+      });
+      add(card, people);
+      add(list, card);
+    });
+    add(report, list);
+  }
+
+  function metric(label, value, main) {
+    const box = el('span', main ? 'is-main' : '');
+    add(box, el('span', 'yx-sub', label + ' '), el('strong', '', hours(value)));
+    return box;
+  }
+
+  async function load(preferCache) {
+    const seq = ++state.reqSeq;
+    const token = state.initSeq;
+    const ids = selectedIds();
+    if (!state.groups.length || !ids.length || !state.ctx || !state.ctx.orgId) {
+      state.loading = false;
+      state.scope = null;
+      state.snapshot = null;
+      state.error = '';
+      renderReport();
+      renderFoot();
+      return;
+    }
+    if (state.rangeError || !state.start || !state.end || state.start > state.end) return;
+    state.loading = true;
+    state.progress = null;
+    state.error = '';
+    state.scope = null;
+    state.snapshot = null;
+    renderFilters();
+    renderReport();
+    renderFoot();
+    try {
+      if (!await ensureCurrentOrg(state.ctx.orgId, token)) return;
+      if (seq !== state.reqSeq) return;
+      const selfId = String(state.ctx.userId || '');
+      const orgId = String(state.ctx.orgId);
+      const scope = await NS.rangeData.resolve(state.prefs, {
+        includeSelf: ids.indexOf(selfId) >= 0,
+        memberIds: ids.filter(function (id) { return id !== selfId; })
+      });
+      if (seq !== state.reqSeq || !state.open) return;
+      if (scope.ctx && scope.ctx.stale) throw new Error('当前组织身份暂不可验证，请稍后重试。');
+      if (String((scope.ctx && scope.ctx.orgId) || '') !== orgId) {
+        showOrgChanged();
+        return;
+      }
+      const query = {
+        start: state.start,
+        end: state.end,
+        dateBasis: state.dateBasis,
+        excludeCancelled: state.prefs.excludeCancelled !== false
+      };
+      let snapshot = preferCache ? await NS.rangeData.readSnapshot(scope, query) : null;
+      if (seq !== state.reqSeq || !state.open) return;
+      if (!snapshot) {
+        snapshot = await NS.rangeData.fetchSnapshot(scope, Object.assign({}, query, {
+          onProgress: function (progress) {
+            if (seq !== state.reqSeq || !state.open) return;
+            state.progress = progress;
+            renderFoot();
+          }
+        }));
+      }
+      if (seq !== state.reqSeq || !state.open) return;
+      state.scope = scope;
+      state.snapshot = snapshot;
+    } catch (error) {
+      if (seq !== state.reqSeq || !state.open) return;
+      state.error = errorText(error);
+    } finally {
+      if (seq === state.reqSeq && state.open) {
+        state.loading = false;
+        state.progress = null;
+        renderFilters();
+        renderReport();
+        renderFoot();
+      }
+    }
+  }
+
+  async function open() {
+    ensureMounted();
+    if (state.open) return;
+    const initSeq = ++state.initSeq;
+    const previousOrgId = String((state.ctx && state.ctx.orgId) || '');
+    state.open = true;
+    refs.mask.classList.remove('yx-hide');
+    lockScroll();
+    state.error = '';
+    state.scope = null;
+    state.snapshot = null;
+    state.ctx = null;
+    state.groups = [];
+    state.contacts = {};
+    state.editingId = null;
+    state.editIds = [];
+    state.saving = false;
+    state.importing = false;
+    refs.org.textContent = '正在识别组织…';
+    render();
+    try {
+      const config = await NS.store.get();
+      const ctx = await NS.detect.context(true);
+      if (!state.open || initSeq !== state.initSeq) return;
+      if (!ctx || !ctx.orgId) throw new Error('无法识别当前组织');
+      if (ctx.stale) throw new Error('当前组织身份暂不可验证，请稍后重试。');
+      const orgChanged = previousOrgId !== String(ctx.orgId);
+      const groups = await NS.store.getGroups(ctx.orgId);
+      const contacts = await NS.store.getContacts(ctx.orgId);
+      const current = await NS.detect.context(true);
+      if (!state.open || initSeq !== state.initSeq) return;
+      if (current && current.stale) throw new Error('当前组织身份暂不可验证，请稍后重试。');
+      if (String((current && current.orgId) || '') !== String(ctx.orgId)) {
+        showOrgChanged();
+        return;
+      }
+      state.ctx = current;
+      state.prefs = config.prefs || {};
+      state.groups = groups;
+      state.contacts = contacts;
+      refs.org.textContent = current.orgName || current.orgId;
+      NS.ui.setTheme(refs.host, state.prefs.theme);
+      if (!state.rangeKey || orgChanged) {
+        const preset = U.rangePresets().filter(function (item) {
+          return item.key === state.prefs.defaultRange;
+        })[0] || U.rangePresets()[2];
+        state.rangeKey = preset.key;
+        state.start = preset.start;
+        state.end = preset.end;
+        state.dateBasis = state.prefs.dateBasis || 'planEnd';
+        state.basis = state.prefs.hoursBasis === 'actual' ? 'act' : 'est';
+      }
+      state.editingId = null;
+      render();
+      if (state.groups.length && selectedIds().length) load(true);
+    } catch (error) {
+      if (!state.open || initSeq !== state.initSeq) return;
+      state.error = errorText(error);
+      state.ctx = null;
+      state.groups = [];
+      render();
+      toast(state.error, 'error');
+    }
+  }
+
+  NS.teamPanel = { open: open, close: close, isOpen: function () { return state.open; } };
 })();
 
 

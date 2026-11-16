@@ -1,8 +1,8 @@
 # 隐私政策 / Privacy Policy
 
 **插件名称 / Extension:** 云效工时统计（Yunxiao Work-Hours Stats）
-**版本 / Version:** 0.3.4
-**生效日期 / Effective date:** 2026-08-21
+**版本 / Version:** 0.3.5
+**生效日期 / Effective date:** 2026-11-16
 
 ---
 
@@ -44,7 +44,7 @@
 
 ### 3. 数据存在哪里
 
-插件仅使用 Chrome 的 `chrome.storage.local`，**数据只保存在你这台电脑上**，
+扩展版使用 Chrome 的 `chrome.storage.local`，油猴版使用 `GM_setValue`，**数据只保存在你这台电脑上**，
 不会同步到云端（未使用 `chrome.storage.sync`），不会离开你的设备。
 
 存储的内容仅限：
@@ -53,9 +53,10 @@
 |---|---|
 | 偏好设置 | 每日标准工时、默认时间范围、归集口径、主题、是否显示合计条、写入模式；以及自动探测出的工时字段写入接口地址（`_writeEndpoint`） |
 | 字段映射缓存 | 你所在组织的工时/日期字段 identifier 与名称的对应关系，避免每次重新探测 |
-| 通讯录缓存 | 你主动从当前视图导入的同事的 userId、显示名、头像 URL，用于团队统计的成员选择（头像 URL 只作为元数据保存，界面上一律显示首字母占位块，不会去加载远程图片） |
+| 通讯录缓存 | 你主动从当前视图导入或手动添加的同事 userId、显示名、头像 URL，用于成员选择（头像 URL 只作为元数据保存，界面上一律显示首字母占位块，不会去加载远程图片） |
 | 身份缓存 | 你自己的 userId、云效显示名、头像 URL，以及所属组织的 id 与名称，按组织分桶保存。用于面板标题、「只看我」筛选，以及接口抖动时的降级回退 |
 | 成员选择 | 你在团队统计里勾选的同事 userId，按组织分桶保存 |
+| 自定义小组 | 你创建的小组名称、组 ID 和成员 userId，按组织分桶保存在本机，用于小组工时统计 |
 | 区间统计快照 | 最近 12 个已加载日期区间的标准化工作项统计数据，用于离线回显和手动按区间刷新 |
 
 **导出的 CSV / Markdown 由你自己触发下载或复制到剪贴板，插件不保留副本。**
@@ -157,7 +158,7 @@ This is functionally identical to you clicking around Yunxiao yourself.
 
 ### 3. Where data is stored
 
-The extension uses only Chrome's `chrome.storage.local`. **Data stays on your machine**,
+The extension uses Chrome's `chrome.storage.local`; the userscript uses `GM_setValue`. **Data stays on your machine**,
 is not synced to the cloud (`chrome.storage.sync` is not used), and never leaves your device.
 
 Stored items are limited to:
@@ -166,9 +167,10 @@ Stored items are limited to:
 |---|---|
 | Preferences | Daily target hours, default date range, date basis, theme, summary-bar toggle, write mode, and the auto-detected write endpoint for the work-hour field (`_writeEndpoint`) |
 | Field-mapping cache | The identifiers and names of your organisation's work-hour / date fields, so they need not be re-detected every time |
-| Contacts cache | userId, display name and avatar URL of colleagues you explicitly imported from the current view, used for member selection in team statistics (the avatar URL is kept as metadata only — the UI always renders a local initial-letter placeholder and never loads the remote image) |
+| Contacts cache | userId, display name and avatar URL of colleagues you explicitly imported from the current view or added by ID, used for member selection in team statistics (the avatar URL is kept as metadata only — the UI always renders a local initial-letter placeholder and never loads the remote image) |
 | Identity cache | Your own userId, Yunxiao display name and avatar URL, plus the id and name of your organisation, bucketed per organisation. Used for the panel header, the "only me" filter, and as a fallback when the API is temporarily unreachable |
 | Member selection | The userIds of colleagues you ticked for team statistics, bucketed per organisation |
+| Custom groups | Group names, group IDs, and member userIds you defined for group statistics, bucketed per organisation and stored locally |
 | Range snapshots | Normalized statistics for the 12 most recently loaded date ranges, used for local replay and manual range refresh |
 
 **Exported CSV / Markdown is downloaded or copied to your clipboard by your own action; no copy is retained.**

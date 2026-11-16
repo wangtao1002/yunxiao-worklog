@@ -85,6 +85,7 @@ load('src/util.js');
 load('src/summary-items.js');
 load('src/workcalendar.js');
 load('src/stats.js');
+load('src/team-stats.js');
 load('src/store.js');
 // api.js 里有两个纯函数（viewFilterToGroups / normalizeViewSpace）必须被测到：
 // 视图筛选转换错了不会报错，只会静默返回 0 条，是最危险的一段。
@@ -93,10 +94,12 @@ load('src/api.js');
 // detect.matchFields 是决定插件在「别家企业」能不能用的唯一函数，必须重点测
 load('src/detect.js');
 load('src/range-data.js');
+load('src/member-source.js');
 
 const YXWT = sandbox.window.YXWT;
 const util = YXWT.util;
 const stats = YXWT.stats;
+const teamStats = YXWT.teamStats;
 const store = YXWT.store;
 const api = YXWT.api;
 const detect = YXWT.detect;
@@ -445,6 +448,71 @@ eq('byMember 分人出数', gm.map((m) => [m.name, m.count, m.est, m.act, m.diff
   [['李维', 2, 3.5, 0, -3.5], ['陈默', 2, 2, 1.5, -0.5]]);
 
 /* ------------------------------------------------------------------ *
+ * 4.1 自定义小组统计：只计算组员，保留无任务成员，并清楚标记不完整数据
+ * ------------------------------------------------------------------ */
+
+const teamMembers = [
+  { id: 'u-a', name: '甲' }, { id: 'u-b', name: '乙' },
+  { id: 'u-c', name: '丙' }, { id: 'u-d', name: '丁' }
+];
+const teamRows = [
+  { id: 'w-a1', assigneeId: 'u-a', est: 4, act: 1 },
+  { id: 'w-a2', assigneeId: 'u-a', est: 1, act: 2 },
+  { id: 'w-b', assigneeId: 'u-b', est: 3, act: 7 },
+  { id: 'w-d', assigneeId: 'u-d', est: 5, act: 0 },
+  { id: 'w-outside', assigneeId: 'u-outside', est: 99, act: 99 }
+];
+const teamGroups = [
+  { id: 'g-one', name: '一组', memberIds: ['u-a', 'u-b', 'u-c'] },
+  { id: 'g-two', name: '二组', memberIds: ['u-d'] },
+  { id: 'g-three', name: '三组', memberIds: ['u-a', 'u-d'] }
+];
+const teamEst = teamStats.aggregate(teamGroups, teamMembers, teamRows, { basis: 'est' });
+eq('小组按预计工时降序排名，组外任务不参与',
+  teamEst.groups.map((g) => [g.id, g.est, g.act, g.count, g.rank]),
+  [['g-three', 10, 3, 3, 1], ['g-one', 8, 10, 3, 2], ['g-two', 5, 0, 1, 3]]);
+const teamZero = teamEst.groups.find((g) => g.id === 'g-one').members.find((m) => m.id === 'u-c');
+eq('无任务成员保留在组内并显示 0 工时',
+  [teamZero.name, teamZero.count, teamZero.est, teamZero.act, teamZero.complete],
+  ['丙', 0, 0, 0, true]);
+eq('同一成员加入多个组时分别计入各组',
+  teamEst.groups.filter((g) => g.memberIds.includes('u-a')).map((g) =>
+    g.members.find((m) => m.id === 'u-a').est), [5, 5]);
+eq('改按实际工时排名时顺序随口径改变',
+  teamStats.aggregate(teamGroups, teamMembers, teamRows, { basis: 'act' }).groups.map((g) => [g.id, g.rank]),
+  [['g-one', 1], ['g-three', 2], ['g-two', 3]]);
+
+const teamTie = teamStats.aggregate([
+  { id: 'tie-a', name: '甲组', memberIds: ['u-a'] },
+  { id: 'tie-b', name: '乙组', memberIds: ['u-d'] },
+  { id: 'tie-c', name: '丙组', memberIds: ['u-b'] }
+], teamMembers, teamRows, { basis: 'est' });
+eq('小组工时同分并列，下一名跳号',
+  teamTie.groups.map((g) => [g.id, g.rank]), [['tie-a', 1], ['tie-b', 1], ['tie-c', 3]]);
+
+const teamFailed = teamStats.aggregate(teamGroups, teamMembers, teamRows, {
+  basis: 'est', memberErrors: [{ id: 'u-b', name: '乙', error: '接口超时' }]
+});
+eq('成员加载失败时所在组不参加完整排行，其他组可正常排行',
+  teamFailed.groups.map((g) => [g.id, g.complete, g.rank]),
+  [['g-three', true, 1], ['g-two', true, 2], ['g-one', false, null]]);
+eq('成员加载失败的组保留明确的失败成员标识',
+  teamFailed.groups.find((g) => g.id === 'g-one').failedMemberIds, ['u-b']);
+eq('快照截断时所有组标记不完整，避免错误排名',
+  teamStats.aggregate(teamGroups, teamMembers, teamRows, { truncated: true }).groups.map((g) => [g.complete, g.rank]),
+  [[false, null], [false, null], [false, null]]);
+const emptyMemberGroup = teamStats.aggregate([
+  { id: 'g-empty', name: '待分配', memberIds: [] },
+  { id: 'g-not-loaded', name: '未查询', memberIds: ['u-unloaded'] }
+], teamMembers, teamRows, { basis: 'est' });
+eq('空组和未查询成员不冒充 0 工时参加排名',
+  emptyMemberGroup.groups.map((g) => [g.id, g.complete, g.rank]),
+  [['g-empty', false, null], ['g-not-loaded', false, null]]);
+eq('空小组列表不会生成任何统计',
+  teamStats.aggregate([], teamMembers, teamRows, { basis: 'est' }),
+  { groups: [], rankableCount: 0, incompleteCount: 0 });
+
+/* ------------------------------------------------------------------ *
  * 5. byDay
  * ------------------------------------------------------------------ */
 
@@ -629,6 +697,87 @@ eq('store 默认显示合计条', cfg0.prefs.showSummaryBar, true);
 eq('store 默认排除已取消', cfg0.prefs.excludeCancelled, true);
 eq('store 默认主题', cfg0.prefs.theme, 'auto');
 eq('store 默认成员为空', cfg0.prefs.members, []);
+eq('store 未创建小组时读取为空', await store.getGroups('org-team-a'), []);
+eq('store 无组织时不读取其它组织的小组', await store.getGroups(''), []);
+
+const savedTeams = await store.setGroups('org-team-a', [
+  { id: 'team-a1', name: '  开发一组  ', memberIds: [' u-me ', 'u-2', 'u-2'] },
+  { id: 'team-a2', name: '开发二组', memberIds: ['u-me'] }
+]);
+eq('store 小组名称和组员 ID 规范化，组内成员去重', savedTeams,
+  [{ id: 'team-a1', name: '开发一组', memberIds: ['u-me', 'u-2'] },
+    { id: 'team-a2', name: '开发二组', memberIds: ['u-me'] }]);
+eq('store 按组织隔离小组', await store.getGroups('org-team-b'), []);
+const editedTeams = await store.getGroups('org-team-a');
+editedTeams[0].memberIds.push('u-unpersisted');
+eq('store 读取结果是深拷贝', (await store.getGroups('org-team-a'))[0].memberIds,
+  ['u-me', 'u-2']);
+await store.setGroups('org-team-b', [{ id: 'team-b', name: '测试组', memberIds: [] }]);
+eq('store 另一个组织写小组不影响当前组织',
+  (await store.getGroups('org-team-a')).map((g) => g.id), ['team-a1', 'team-a2']);
+
+let badTeamRejected = false;
+try {
+  await store.setGroups('org-team-a', [{ id: 'dup', name: '甲', memberIds: [] },
+    { id: 'dup', name: '乙', memberIds: [] }]);
+} catch (e) { badTeamRejected = true; }
+ok('store 拒绝重复小组 ID，已有配置不被覆盖', badTeamRejected &&
+  (await store.getGroups('org-team-a')).length === 2);
+badTeamRejected = false;
+try { await store.setGroups('org-team-a', [{ id: 'x', name: ' ', memberIds: [] }]); }
+catch (e) { badTeamRejected = true; }
+ok('store 拒绝空组名', badTeamRejected);
+badTeamRejected = false;
+try { await store.setGroups('org-team-a', [{ id: 'x', name: '坏组员', memberIds: [''] }]); }
+catch (e) { badTeamRejected = true; }
+ok('store 拒绝空成员 ID，避免静默漏算', badTeamRejected);
+badTeamRejected = false;
+try { await store.setGroups('', [{ id: 'x', name: '跨组织风险', memberIds: [] }]); }
+catch (e) { badTeamRejected = true; }
+ok('store 禁止无组织 ID 写小组', badTeamRejected);
+await store.setGroups('org-team-a', []);
+eq('store 删除全部自定义小组后为空', await store.getGroups('org-team-a'), []);
+eq('store 清空本组织不影响其它组织',
+  (await store.getGroups('org-team-b')).map((g) => g.id), ['team-b']);
+
+// 小组管理和主面板共用视图导入逻辑，保证项目查询范围与通讯录写入一致。
+{
+  const originalList = api.listWorkitems;
+  const originalContext = detect.context;
+  const originalPath = sandbox.location.pathname;
+  let query = null;
+  sandbox.location.pathname = '/projex/project/project123';
+  detect.context = async () => ({ orgId: 'org-source' });
+  api.listWorkitems = async (options) => {
+    query = options;
+    return { items: [
+      { assignedTo: { identifier: 'self-source', displayName: '我' } },
+      { assignedTo: { identifier: 'peer-source', displayName: '同事' } },
+      { assignedTo: { identifier: 'peer-source', displayName: '同事' } }
+    ], truncated: false };
+  };
+  try {
+    const imported = await YXWT.memberSource.importCurrentView({ orgId: 'org-source', userId: 'self-source' });
+    eq('共享视图导入按项目查询，最多扫描三页',
+      [query.spaceType, query.spaceIdentifier, query.maxPages, query.pageSize],
+      ['Project', 'project123', 3, 200]);
+    eq('共享视图导入对负责人去重且不把自己算作同事',
+      [imported.totalCount, imported.colleagueCount], [2, 1]);
+    eq('共享视图导入将成员存入当前组织通讯录',
+      (await store.getContacts('org-source'))['peer-source'].name, '同事');
+    detect.context = async () => ({ orgId: 'org-switched' });
+    let changedOrgRejected = false;
+    try {
+      await YXWT.memberSource.importCurrentView({ orgId: 'org-old-import', userId: 'self-source' });
+    } catch (error) { changedOrgRejected = /组织已切换/.test(String(error.message)); }
+    ok('导入期间切换组织时拒绝写入旧组织通讯录', changedOrgRejected &&
+      Object.keys(await store.getContacts('org-old-import')).length === 0);
+  } finally {
+    api.listWorkitems = originalList;
+    detect.context = originalContext;
+    sandbox.location.pathname = originalPath;
+  }
+}
 
 const cfg1 = await store.setPrefs({ dryRun: false, dailyTargetHours: 7.5 });
 eq('store.setPrefs 合并后回读', [cfg1.prefs.dryRun, cfg1.prefs.dailyTargetHours], [false, 7.5]);
@@ -711,6 +860,18 @@ const concurrentDaily = await Promise.all([
   rangeData.refreshThisMonthIfNeeded(dailyScope, dailyPrefs, { now: dayThree })
 ]);
 eq('rangeData 面板与悬浮条并发时只刷新一次本月', [dailyCalls, concurrentDaily[0].refreshed, concurrentDaily[1].refreshed], [2, true, true]);
+api.listWorkitems = async (query) => {
+  if (query.spaceIdentifier === 'u-failed') throw new Error('模拟加载失败');
+  return { items: [], truncated: false };
+};
+const partialScope = Object.assign({}, dailyScope, {
+  members: [{ id: 'u-good', name: '同名成员' }, { id: 'u-failed', name: '同名成员' }]
+});
+const partialSnapshot = await rangeData.fetchSnapshot(partialScope, {
+  start: '2032-01-01', end: '2032-01-07', dateBasis: 'planEnd'
+});
+eq('rangeData 成员失败项带 ID，避免同名成员误判小组完整性',
+  partialSnapshot.memberErrors, [{ id: 'u-failed', name: '同名成员', error: '模拟加载失败' }]);
 api.listWorkitems = originalListWorkitems;
 
 /* ------------------------------------------------------------------ *
@@ -1867,6 +2028,115 @@ const GROUPS = [
 }
 
 /* ------------------------------------------------------------------ *
+ * 18. 小组模块空状态：打开模块不应发起成员统计请求
+ * ------------------------------------------------------------------ */
+
+{
+  const original = {
+    h: YXWT.ui.h, mount: YXWT.ui.mount, icon: YXWT.ui.icon,
+    createElement: sandbox.document.createElement,
+    documentElement: sandbox.document.documentElement,
+    body: sandbox.document.body,
+    context: detect.context,
+    resolve: rangeData.resolve,
+    readSnapshot: rangeData.readSnapshot,
+    fetchSnapshot: rangeData.fetchSnapshot
+  };
+  function fakeNode(tag) {
+    const node = {
+      tagName: String(tag || 'div').toUpperCase(),
+      children: [], style: {}, dataset: {}, attributes: {}, parentNode: null,
+      className: '', textContent: '', value: '', scrollTop: 0,
+      appendChild(child) {
+        this.children.push(child);
+        if (child && typeof child === 'object') child.parentNode = this;
+        return child;
+      },
+      removeChild(child) {
+        const i = this.children.indexOf(child);
+        if (i >= 0) this.children.splice(i, 1);
+        if (child && typeof child === 'object') child.parentNode = null;
+        return child;
+      },
+      insertBefore(child, before) {
+        const i = this.children.indexOf(before);
+        if (i < 0) return this.appendChild(child);
+        this.children.splice(i, 0, child);
+        if (child && typeof child === 'object') child.parentNode = this;
+        return child;
+      },
+      setAttribute(key, value) { this.attributes[key] = String(value); },
+      getAttribute(key) { return this.attributes[key] ?? null; },
+      removeAttribute(key) { delete this.attributes[key]; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {},
+      removeEventListener() {},
+      focus() {},
+      remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+    };
+    Object.defineProperty(node, 'firstChild', { get() { return this.children[0] || null; } });
+    node.classList = {
+      add(cls) { node.className = (node.className + ' ' + cls).trim(); },
+      remove(cls) { node.className = node.className.split(/\s+/).filter((x) => x !== cls).join(' '); },
+      contains(cls) { return node.className.split(/\s+/).includes(cls); },
+      toggle(cls, force) {
+        const on = force === undefined ? !this.contains(cls) : !!force;
+        if (on && !this.contains(cls)) this.add(cls);
+        if (!on) this.remove(cls);
+        return on;
+      }
+    };
+    return node;
+  }
+  const host = fakeNode('div');
+  const root = fakeNode('shadow-root');
+  YXWT.ui.h = (tag, props = {}) => {
+    const node = fakeNode(tag);
+    node.className = props.class || '';
+    node.textContent = props.text == null ? '' : String(props.text);
+    if (props.onclick) node.onclick = props.onclick;
+    return node;
+  };
+  YXWT.ui.mount = () => ({ host, root });
+  YXWT.ui.icon = () => fakeNode('svg');
+  sandbox.document.createElement = fakeNode;
+  sandbox.document.documentElement = fakeNode('html');
+  sandbox.document.body = fakeNode('body');
+  detect.context = async () => ({ orgId: 'org-empty-ui', orgName: '空组织', userId: 'u-me', name: '陈默' });
+  let statsRequests = 0;
+  rangeData.resolve = async () => { statsRequests++; throw new Error('空组不应解析统计范围'); };
+  rangeData.readSnapshot = async () => { statsRequests++; throw new Error('空组不应读取统计快照'); };
+  rangeData.fetchSnapshot = async () => { statsRequests++; throw new Error('空组不应拉取统计数据'); };
+  try {
+    await store.setGroups('org-empty-ui', []);
+    load('src/team-panel.js');
+    await Promise.resolve(YXWT.teamPanel.open());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const visibleText = (function collect(node) {
+      return String(node.textContent || '') + (node.children || []).map(collect).join(' ');
+    })(root);
+    ok('未建小组时独立模块显示创建入口',
+      visibleText.includes('还没有自定义小组') && visibleText.includes('新建第一个小组'));
+    eq('未建自定义小组时打开模块不请求成员工时', statsRequests, 0);
+    YXWT.teamPanel.close();
+  } catch (e) {
+    ok('未建自定义小组时能打开独立模块', false, e && e.message);
+  } finally {
+    YXWT.ui.h = original.h;
+    YXWT.ui.mount = original.mount;
+    YXWT.ui.icon = original.icon;
+    sandbox.document.createElement = original.createElement;
+    sandbox.document.documentElement = original.documentElement;
+    sandbox.document.body = original.body;
+    detect.context = original.context;
+    rangeData.resolve = original.resolve;
+    rangeData.readSnapshot = original.readSnapshot;
+    rangeData.fetchSnapshot = original.fetchSnapshot;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * 结果
  * ------------------------------------------------------------------ */
 
@@ -1877,4 +2147,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log('✓ 冒烟测试全绿：' + pass + ' 项断言通过');
-console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / store / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / api.saveDateField(计划日期写入·拦截式抓包端点) / store.patchRangeSnapshots(改日期换区间) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');
+console.log('  覆盖 util / stats(normalize·summarize·groupBy·byMember·byDay·overdue·missingEst·toCsv·toMarkdown) / teamStats(组内合计·组间排名·不完整数据) / teamPanel(空组无请求) / store(组织隔离的小组) / memberSource(共享视图导入) / api(viewFilterToGroups·normalizeViewSpace) / detect(matchFields 跨企业·简繁英·describe) / api.saveWorkHours(工时写入·实证端点) / api.saveDateField(计划日期写入·拦截式抓包端点) / store.patchRangeSnapshots(改日期换区间) / content.js+background.js(快捷键·消息·图标) / summarybar(分组标签检测) / gm-shim(油猴版 chrome API 垫片)');

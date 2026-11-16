@@ -17,6 +17,7 @@
     context: null,       // 最后一次成功识别的身份，仅在推不出当前组织时作降级回退
     // 团队视图里额外纳入的 userId，同样必须按组织分桶：userId 只在本组织有意义
     membersByOrg: {},    // { [orgId]: [userId] }
+    groupsByOrg: {},     // { [orgId]: [{id, name, memberIds}] }，自定义小组只保存在本地
     // 按“组织 + 成员 + 口径 + 起止日期”保存的统计快照。只留最近 12 份，避免撑爆 storage.local。
     rangeSnapshots: {},  // { [cacheKey]: {savedAt, rows, ...} }
     prefs: {
@@ -321,6 +322,75 @@
     });
   }
 
+  function normalizeGroups(groups, strict) {
+    if (!Array.isArray(groups)) {
+      if (strict) throw new Error('小组配置必须是数组');
+      return [];
+    }
+    const seen = new Set();
+    const out = [];
+    groups.forEach(function (group) {
+      if (!isPlainObject(group) || !Array.isArray(group.memberIds)) {
+        if (strict) throw new Error('小组配置格式无效');
+        return;
+      }
+      const id = typeof group.id === 'string' ? group.id.trim() : '';
+      const name = typeof group.name === 'string' ? group.name.trim().replace(/\s+/g, ' ') : '';
+      if (!id || id.length > 128 || !name || name.length > 80 || seen.has(id)) {
+        if (strict) throw new Error('小组 ID 或名称无效，或小组 ID 重复');
+        return;
+      }
+      const members = [];
+      const memberSeen = new Set();
+      group.memberIds.forEach(function (rawId) {
+        const memberId = typeof rawId === 'string' ? rawId.trim() : '';
+        if (!memberId || memberId.length > 256) {
+          if (strict) throw new Error('小组成员 ID 无效');
+          return;
+        }
+        if (memberSeen.has(memberId)) return;
+        memberSeen.add(memberId);
+        members.push(memberId);
+      });
+      seen.add(id);
+      out.push({ id: id, name: name, memberIds: members });
+    });
+    return out;
+  }
+
+  function getGroups(orgId) {
+    const key = String(orgId || '');
+    if (!key || key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return Promise.resolve([]);
+    }
+    return get().then(function (cfg) {
+      return normalizeGroups(cfg.groupsByOrg[key], false);
+    });
+  }
+
+  function setGroups(orgId, groups) {
+    const key = String(orgId || '');
+    if (!key || key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return Promise.reject(new Error('未识别到有效组织，无法保存小组'));
+    }
+    let list;
+    try {
+      list = normalizeGroups(groups, true);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    return enqueue(function () {
+      return rawGet().then(function (raw) {
+        const cfg = deepMerge(DEFAULTS, raw);
+        const byOrg = clone(cfg.groupsByOrg);
+        byOrg[key] = list;
+        return rawSet({ groupsByOrg: byOrg }).then(function () {
+          return clone(list);
+        });
+      });
+    });
+  }
+
   function getContext(orgId) {
     const key = String(orgId || '');
     return get().then(function (cfg) {
@@ -376,7 +446,7 @@
       return null;
     }
     const id = String(u.identifier || u.id || '').trim();
-    if (!id) {
+    if (!id || id === '__proto__' || id === 'constructor' || id === 'prototype') {
       return null;
     }
     let name = '';
@@ -646,6 +716,8 @@
     setFieldMap: setFieldMap,
     getMembers: getMembers,
     setMembers: setMembers,
+    getGroups: getGroups,
+    setGroups: setGroups,
     getContext: getContext,
     setContext: setContext,
     getContacts: getContacts,

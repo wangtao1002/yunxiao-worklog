@@ -515,6 +515,10 @@
       el('div', 'yxp-title', '云效工时统计'),
       org,
       el('div', 'yxp-spacer'),
+      btn('yxp-btn primary', '小组统计', function () {
+        close();
+        NS.teamPanel.open();
+      }),
       btn('yxp-x', '✕', close)
     );
 
@@ -2717,34 +2721,6 @@
 
   /* ---------------------------------------------------------------- 从当前视图导入同事 */
 
-  // 视图 filter -> conditionGroups 统一走 api.viewFilterToGroups（曾经 panel/summarybar 各写一份，行为不一致）
-  const viewFilterToGroups = function (f) { return NS.api.viewFilterToGroups(f); };
-
-  async function currentPageQuery() {
-    const pm = /\/projex\/project\/([0-9a-zA-Z]+)/.exec(location.pathname || '');
-    if (pm) {
-      return { spaceType: 'Project', spaceIdentifier: pm[1], category: '', conditionGroups: [[]] };
-    }
-    const vm = /viewIdentifier=([0-9a-zA-Z_-]+)/.exec(location.hash || '');
-    if (vm) {
-      const view = await NS.api.getView(vm[1]);
-      if (!view) return null;
-      // 内置视图（我负责的 / 近期我参与 / 待我验证…）的 spaceIdentifier 是字面量 'system'，
-      // 原样拿去查会恒返回 0 条、然后提示「这一页没扫到负责人」。统一走 api.normalizeViewSpace
-      // 回落到当前用户（summarybar 也用同一个函数，避免再漏第三处）。
-      const space = NS.api.normalizeViewSpace(view, state.ctx && state.ctx.userId);
-      const q = {
-        spaceType: space.spaceType,
-        spaceIdentifier: space.spaceIdentifier,
-        category: '',
-        conditionGroups: viewFilterToGroups(view.filter)
-      };
-      if (space.scope !== undefined) q.scope = space.scope;
-      return q;
-    }
-    return null;
-  }
-
   async function importColleagues() {
     // store 的通讯录按 orgId 分桶，orgId 为空时写不进去，别给用户一个假的成功提示
     if (!state.ctx || !state.ctx.orgId) { toast('还没识别到当前组织，先点刷新', 'error'); return; }
@@ -2753,39 +2729,21 @@
     state.importing = true;
     setImportBtnBusy(true);
     try {
-      const q = await currentPageQuery();
-      if (!q) {
-        toast('当前页面不是工作项列表页或项目页，先切到列表页再导入', 'error');
-        return;
-      }
-      const res = await NS.api.listWorkitems(Object.assign({ pageSize: 200, maxPages: 3 }, q));
-      const users = [];
-      const seen = {};
-      (res.items || []).forEach(function (it) {
-        const a = it && it.assignedTo;
-        const id = a && a.identifier;
-        if (!id || seen[id]) return;
-        seen[id] = 1;
-        users.push(a);
-      });
-      if (!users.length) {
+      const result = await NS.memberSource.importCurrentView(state.ctx);
+      if (!result.totalCount) {
         toast('这一页没扫到负责人', 'info');
         return;
       }
-      // 通讯录里把自己也存着无妨，但成员选择器不展示自己（buildMemberPicker 会跳过 selfId），
-      // 所以提示必须按「除我之外的人数」报，否则个人视图下会出现「已导入 1 位同事」+ 列表仍是空的
-      const selfId = String((state.ctx && state.ctx.userId) || '');
-      const others = users.filter(function (u) { return String(u && u.identifier) !== selfId; });
-      await NS.store.addContacts(state.ctx.orgId, users);
       state.contacts = (await NS.store.getContacts(state.ctx.orgId)) || {};
       state.contactsSig = contactsSig(state.contacts);
       invalidateMemberPicker();
       renderFilters();
-      if (!others.length) {
+      if (!result.colleagueCount) {
         toast('当前视图里只有你自己的工作项，没导入到同事。换成项目工作项列表页或含他人任务的视图再试。', 'info');
         return;
       }
-      toast('已导入 ' + others.length + ' 位同事到通讯录', 'success');
+      toast('已导入 ' + result.colleagueCount + ' 位同事到通讯录' +
+        (result.truncated ? '（视图仅扫描前 600 条工作项）' : ''), 'success');
     } catch (e) {
       toast('导入失败：' + errMsg(e), 'error');
     } finally {
