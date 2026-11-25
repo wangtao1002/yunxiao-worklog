@@ -64,6 +64,13 @@
     '  gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--yx-border);font-size:12px;}',
     '.tmt-member:last-child{border-bottom:0;}',
     '.tmt-member > :not(:first-child){text-align:right;font-variant-numeric:tabular-nums;}',
+		'.tmt-memberlink{justify-self:start;max-width:100%;white-space:normal;text-align:left;color:var(--yx-accent);}',
+		'.tmt-taskdetails{overflow:auto;padding:10px;background:var(--yx-surface-2);}',
+		'.tmt-taskdetails[hidden]{display:none;}',
+		'.tmt-tasktable{width:100%;border-collapse:collapse;font-size:12px;}',
+		'.tmt-tasktable th,.tmt-tasktable td{padding:8px;text-align:left;border-bottom:1px solid var(--yx-border);}',
+		'.tmt-tasktable td:first-child{min-width:180px;overflow-wrap:anywhere;}',
+		'.tmt-tasktable a{color:var(--yx-accent);}',
     '.tmt-member.is-head{color:var(--yx-text-dim);font-size:11px;}',
     '.tmt-member.is-failed{color:var(--yx-warn);}',
     '.tmt-note{font-size:12px;color:var(--yx-text-dim);line-height:1.55;}',
@@ -380,6 +387,20 @@
     const head = el('div', 'tmt-sidehead');
     add(head, el('h2', '', '我的小组'), button('＋ 新建', function () { startEdit(null); }, 'is-primary is-sm'));
     add(list, head);
+		const transfer = el('div', 'yx-row')
+		const exportButton = button('导出小组配置', exportGroups, 'is-sm')
+		const importButton = button('导入小组配置', () => file.click(), 'is-sm')
+		const file = input('file')
+		file.accept = '.json,application/json'
+		file.hidden = true
+		file.setAttribute('aria-label', '选择小组配置文件')
+		const orgId = state.ctx && state.ctx.orgId
+		const token = state.initSeq
+		file.onchange = () => importGroups(file.files && file.files[0], orgId, token)
+		exportButton.disabled = !orgId || !state.groups.length || state.saving
+		importButton.disabled = !orgId || state.saving
+		add(transfer, exportButton, importButton, file)
+		add(list, transfer)
     if (!state.groups.length) add(list, note('尚未创建小组。创建后才会查询成员工时。'));
     state.groups.forEach(function (group) {
       const item = el('div', 'tmt-groupitem');
@@ -398,6 +419,58 @@
     if (state.editingId !== null) renderEditor();
     add(side, note('成员可加入多个组；每组独立统计，组间有重叠时不要把各组总工时相加。', 'tmt-sidehint'));
   }
+
+	async function exportGroups() {
+		const token = state.initSeq
+		const orgId = state.ctx && state.ctx.orgId
+		try {
+			if (!await ensureCurrentOrg(orgId, token)) return
+			const config = await NS.store.exportGroupConfig(orgId)
+			if (!state.open || token !== state.initSeq) return
+			U.downloadText('云效小组配置_' + orgId + '.json', JSON.stringify(config, null, 2), 'application/json;charset=utf-8')
+			toast('已导出小组及成员 ID、姓名', 'success')
+		} catch (error) {
+			if (state.open && token === state.initSeq) toast('导出失败：' + errorText(error), 'error')
+		}
+	}
+
+	async function importGroups(file, orgId, token) {
+		if (!file || state.saving || !state.open || token !== state.initSeq) return
+		state.saving = true
+		renderSide()
+		try {
+			if (file.size > 2 * 1024 * 1024) throw new Error('配置文件不能超过 2 MB')
+			const data = NS.store.validateGroupConfig(orgId, JSON.parse((await file.text()).replace(/^\uFEFF/, '')))
+			if (!await ensureCurrentOrg(orgId, token)) return
+			const confirmed = await NS.ui.confirmDialog(refs.root, {
+				title: '导入小组配置',
+				body: '导入 ' + data.groups.length + ' 个小组、' + data.members.length +
+					' 位成员（ID 和姓名）。同 ID 小组更新，其他小组保留；成员同步写入设置页通讯录。',
+				okText: '导入'
+			})
+			if (!confirmed || !await ensureCurrentOrg(orgId, token)) return
+			const result = await NS.store.importGroupConfig(orgId, data)
+			if (!state.open || token !== state.initSeq) return
+			state.groups = result.groups
+			state.contacts = result.contacts
+			state.editingId = null
+			state.editIds = []
+			state.reqSeq++
+			state.scope = null
+			state.snapshot = null
+			state.error = ''
+			render()
+			load(true)
+			toast('小组已导入，成员 ID 和姓名已写入通讯录', 'success')
+		} catch (error) {
+			if (state.open && token === state.initSeq) toast('导入失败：' + errorText(error), 'error')
+		} finally {
+			if (state.open && token === state.initSeq) {
+				state.saving = false
+				renderSide()
+			}
+		}
+	}
 
   function startEdit(group) {
     if (state.saving) return;
@@ -767,7 +840,16 @@
       add(people, columns);
       group.members.forEach(function (member) {
         const row = el('div', 'tmt-member' + (member.complete ? '' : ' is-failed'));
-        const label = el('span', '', member.name + (member.error ? '（加载失败）' : ''));
+				const details = el('div', 'tmt-taskdetails')
+				details.hidden = true
+				details.id = people.id + '-detail-' + group.members.indexOf(member)
+				const label = button(member.name + (member.error ? '（加载失败）' : ''), () => {
+					if (details.hidden && !details.firstChild) renderMemberTasks(details, member, rows)
+					details.hidden = !details.hidden
+					label.setAttribute('aria-expanded', String(!details.hidden))
+				}, 'is-ghost is-sm tmt-memberlink')
+				label.setAttribute('aria-expanded', 'false')
+				label.setAttribute('aria-controls', details.id)
         label.title = member.error || member.id;
         add(row,
           label,
@@ -775,13 +857,45 @@
           el('span', '', member.error ? '—' : hours(member.act)),
           el('span', '', member.error ? '—' : member.count)
         );
-        add(people, row);
+        add(people, row, details);
       });
       add(card, people);
       add(list, card);
     });
     add(report, list);
   }
+
+	function renderMemberTasks(container, member, rows) {
+		add(container, note(member.name + ' · ID：' + member.id + ' · ' + state.start + ' 至 ' + state.end))
+		if (!member.complete) add(container, note(member.error || '数据不完整，以下仅展示已加载的任务。', 'tmt-alert'))
+		const tasks = rows.filter(row => String(row.assigneeId || '') === member.id)
+		if (!tasks.length) {
+			add(container, note(member.complete ? '当前范围内没有任务。' : '暂无可展示的任务，请重新查询。'))
+			return
+		}
+		add(container, note(tasks.length + ' 条任务 · 预计 ' + hours(member.est) + ' · 实际 ' + hours(member.act)))
+		const table = el('table', 'tmt-tasktable')
+		const head = el('tr')
+		const titles = ['任务', '项目', '状态', '预计', '实际']
+		titles.forEach(title => add(head, el('th', '', title)))
+		add(table, add(el('thead'), head))
+		const body = el('tbody')
+		tasks.forEach(task => {
+			const row = el('tr')
+			const title = [task.sn, task.subject || task.id].filter(Boolean).join(' ')
+			const link = el('a', '', title)
+			if (typeof task.url === 'string' && /^https:\/\/devops\.aliyun\.com\//.test(task.url)) {
+				link.href = task.url
+				link.target = '_blank'
+				link.rel = 'noopener noreferrer'
+			}
+			add(row, add(el('td'), link), el('td', '', task.project || '—'), el('td', '', task.status || '—'),
+				el('td', '', hours(task.est)), el('td', '', hours(task.act)))
+			add(body, row)
+		})
+		add(table, body)
+		add(container, table)
+	}
 
   function metric(label, value, main) {
     const box = el('span', main ? 'is-main' : '');

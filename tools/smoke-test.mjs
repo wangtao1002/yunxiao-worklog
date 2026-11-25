@@ -740,6 +740,49 @@ eq('store 删除全部自定义小组后为空', await store.getGroups('org-team
 eq('store 清空本组织不影响其它组织',
   (await store.getGroups('org-team-b')).map((g) => g.id), ['team-b']);
 
+// 配置文件往返必须同时恢复通讯录 ID 和姓名，非法文件不得产生部分写入。
+{
+	const org = 'org-config-test'
+	await store.setGroups(org, [{ id: 'g1', name: '开发组', memberIds: ['person-a', 'person-b'] }])
+	await store.addContacts(org, [{ id: 'person-a', name: '同名成员' }, { id: 'person-b', name: '同名成员' }])
+	const exported = await store.exportGroupConfig(org)
+	eq('小组导出保留同名成员的不同 ID', exported.members,
+		[{ id: 'person-a', name: '同名成员' }, { id: 'person-b', name: '同名成员' }])
+	eq('导出仅含小组迁移字段', Object.keys(exported).sort(), ['groups', 'members', 'orgId', 'type', 'version'])
+	await store.setGroups(org, [{ id: 'keep', name: '保留组', memberIds: [] }])
+	await store.removeContact(org, 'person-a')
+	await store.removeContact(org, 'person-b')
+	await store.addContacts(org, { id: 'unrelated', name: '其他联系人' })
+	await store.importGroupConfig(org, JSON.parse(JSON.stringify(exported)))
+	eq('导入写入设置页所用通讯录的 ID 和姓名', (await store.getContacts(org))['person-a'],
+		{ id: 'person-a', name: '同名成员', avatar: '' })
+	await store.importGroupConfig(org, exported)
+	eq('重复导入幂等，保留其他小组', (await store.getGroups(org)).map(g => g.id), ['keep', 'g1'])
+	ok('导入保留其他通讯录联系人', !!(await store.getContacts(org)).unrelated)
+	eq('导入不影响其他组织', (await store.getGroups('org-team-b')).map(g => g.id), ['team-b'])
+	const renamed = JSON.parse(JSON.stringify(exported))
+	renamed.groups[0].name = '开发组更新'
+	await store.importGroupConfig(org, renamed)
+	eq('同 ID 小组更新名称', (await store.getGroups(org))[1].name, '开发组更新')
+	for (const [label, mutate] of [
+		['跨组织', data => { data.orgId = 'other-org' }],
+		['缺少成员 ID', data => { delete data.members[0].id }],
+		['缺少姓名', data => { delete data.members[0].name }],
+		['缺少成员引用', data => { data.members.pop() }],
+		['重复成员 ID', data => { data.members.push(data.members[0]) }],
+		['危险成员 ID', data => { data.members[0].id = '__proto__' }],
+		['不支持的版本', data => { data.version = 99 }],
+		['同名不同 ID', data => { data.groups[0].id = 'different'; data.groups[0].name = '保留组' }]
+	]) {
+		const before = JSON.stringify(await store.get())
+		const invalid = JSON.parse(JSON.stringify(exported))
+		mutate(invalid)
+		let rejected = false
+		try { await store.importGroupConfig(org, invalid) } catch (_) { rejected = true }
+		ok('配置拒绝' + label + '且不部分写入', rejected && JSON.stringify(await store.get()) === before)
+	}
+}
+
 // 小组管理和主面板共用视图导入逻辑，保证项目查询范围与通讯录写入一致。
 {
   const originalList = api.listWorkitems;
@@ -2175,6 +2218,17 @@ const GROUPS = [
     cardControl(firstCard).onclick();
     eq('单组展开不影响其它组', cards().map(foldState), [['true', false], ['false', true]]);
     ok('单组展开不重建卡片且不改变滚动位置', cardByName('测试甲组') === firstCard && body.scrollTop === 137);
+
+		const memberButton = findAll(firstCard, node => withClass(node, 'tmt-memberlink'))[0]
+		const detail = findAll(firstCard, node => withClass(node, 'tmt-taskdetails'))[0]
+		memberButton.onclick()
+		const detailText = findAll(detail, () => true).map(node => node.textContent).join(' ')
+		ok('点击成员姓名展开当前成员任务', !detail.hidden && detailText.includes('fold-task-a'))
+		ok('任务明细按 ID 隔离其他成员', !detailText.includes('fold-task-b'))
+		ok('明细任务数和预计实际工时与汇总一致', detailText.includes('1 条任务 · 预计 6h · 实际 1h'))
+		eq('成员按钮展开状态正确', memberButton.getAttribute('aria-expanded'), 'true')
+		memberButton.onclick()
+		ok('再次点击姓名收起任务明细', detail.hidden)
 
     action('全部展开').onclick();
     eq('全部展开显示每组成员明细', cards().map(foldState), [['true', false], ['true', false]]);

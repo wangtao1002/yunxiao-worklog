@@ -391,6 +391,80 @@
     });
   }
 
+	function validConfigId(value) {
+		return typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= 256 &&
+			!/[\s\u0000-\u001f\u007f]/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
+	}
+
+	function validateGroupConfig(orgId, data) {
+		if (!validConfigId(orgId) || !isPlainObject(data) || data.type !== 'yxwt-group-config' || data.version !== 1) {
+			throw new Error('不是有效的小组配置文件，或文件版本不受支持')
+		}
+		if (data.orgId !== orgId) throw new Error('配置所属组织与当前组织不一致')
+		const groups = normalizeGroups(data.groups, true)
+		if (!groups.length) throw new Error('配置中没有小组')
+		if (!Array.isArray(data.members)) throw new Error('配置缺少成员 ID 和姓名')
+		const members = new Map()
+		data.members.forEach(member => {
+			if (!isPlainObject(member) || !validConfigId(member.id) || typeof member.name !== 'string' ||
+				!member.name.trim() || member.name.trim().length > 80 || members.has(member.id)) {
+				throw new Error('成员必须包含有效且不重复的 ID 和姓名，不能只提供姓名')
+			}
+			members.set(member.id, { id: member.id, name: member.name.trim() })
+		})
+		const names = new Set()
+		const required = new Set()
+		groups.forEach(group => {
+			if (names.has(group.name)) throw new Error('配置中存在同名小组')
+			names.add(group.name)
+			group.memberIds.forEach(id => {
+				if (!members.has(id)) throw new Error('小组成员缺少 ID 和姓名记录：' + id)
+				required.add(id)
+			})
+		})
+		if (required.size !== members.size) throw new Error('配置包含未归属任何小组的成员')
+		return { type: 'yxwt-group-config', version: 1, orgId, groups, members: Array.from(members.values()) }
+	}
+
+	async function exportGroupConfig(orgId) {
+		const cfg = await get()
+		const groups = normalizeGroups(cfg.groupsByOrg[orgId], false)
+		const book = cfg.contacts[orgId] || {}
+		const ids = new Set(groups.flatMap(group => group.memberIds))
+		const members = Array.from(ids, id => ({ id, name: (book[id] && book[id].name) || id }))
+		return validateGroupConfig(orgId, { type: 'yxwt-group-config', version: 1, orgId, groups, members })
+	}
+
+	function importGroupConfig(orgId, data) {
+		let config
+		try {
+			config = validateGroupConfig(orgId, data)
+		} catch (error) {
+			return Promise.reject(error)
+		}
+		return enqueue(async () => {
+			const cfg = deepMerge(DEFAULTS, await rawGet())
+			const groups = normalizeGroups(cfg.groupsByOrg[orgId], false)
+			config.groups.forEach(group => {
+				const index = groups.findIndex(existing => existing.id === group.id)
+				if (index < 0) groups.push(group)
+				else groups[index] = group
+			})
+			if (new Set(groups.map(group => group.name)).size !== groups.length) {
+				throw new Error('存在同名但 ID 不同的小组，请先修改小组名称再导入')
+			}
+			const book = cfg.contacts[orgId] || {}
+			config.members.forEach(member => {
+				book[member.id] = { id: member.id, name: member.name, avatar: (book[member.id] && book[member.id].avatar) || '' }
+			})
+			cfg.groupsByOrg[orgId] = groups
+			cfg.contacts[orgId] = book
+			// 小组和通讯录同次写入，避免只导入小组却没有成员资料。
+			await rawSet({ groupsByOrg: cfg.groupsByOrg, contacts: cfg.contacts })
+			return { groups: clone(groups), contacts: clone(book) }
+		})
+	}
+
   function getContext(orgId) {
     const key = String(orgId || '');
     return get().then(function (cfg) {
@@ -718,6 +792,9 @@
     setMembers: setMembers,
     getGroups: getGroups,
     setGroups: setGroups,
+		validateGroupConfig,
+		exportGroupConfig,
+		importGroupConfig,
     getContext: getContext,
     setContext: setContext,
     getContacts: getContacts,
